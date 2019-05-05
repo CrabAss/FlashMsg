@@ -14,4 +14,4 @@ An instant messaging platform written in Flutter. Powered by Google Firebase.
 
 ## Acknowledgement
 
-This app is inspired by [duytq94/flutter-chat-demo](https://github.com/duytq94/flutter-chat-demo). 
+This app is inspired by [duytq94/flutter-chat-demo](https://github.com/duytq94/flutter-chat-demo). The corresponding license is attached in `LICENSE-3RD-PARTY`.
