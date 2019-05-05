@@ -16,19 +16,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'FlashMsg',
+      home: LoginScreen(),
       theme: ThemeData(
         primaryColor: themeColor,
       ),
-      home: LoginScreen(title: 'Welcome to FlashMsg!'),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class LoginScreen extends StatefulWidget {
-  LoginScreen({Key key, this.title}) : super(key: key);
-
-  final String title;
+  LoginScreen({Key key}) : super(key: key);
 
   @override
   LoginScreenState createState() => LoginScreenState();
@@ -131,26 +129,48 @@ class LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          title: Text(
-            widget.title,
-            style: TextStyle(color: whiteColor),
-          ),
-        ),
-        body: Stack(
+    return Material(
+      child: Container(
+        decoration: BoxDecoration(color: whiteColor),
+        child: Column(
           children: <Widget>[
-            Center(
-              child: GoogleSignInButton(
-                  onPressed: handleSignIn,
-                  darkMode: true,
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(color: themeColor),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Icon(
+                          Icons.forum,
+                          size: 128,
+                          color: whiteColor,
+                        ),
+                      ),
+                      Text("Welcome to", style: TextStyle(color: whiteColor, fontSize: 24),),
+                      Text("FlashMsg", style: TextStyle(color: whiteColor, fontSize: 36, fontWeight: FontWeight.bold),),
+                    ],
+                  ),
+                ),
               ),
             ),
+            Container(
+              height: 160,
+              child: Stack(
+                children: <Widget>[
+                  Center(
+                    child: GoogleSignInButton(
+                      onPressed: handleSignIn,
+                      darkMode: true,
+                    ),
+                  ),
 
-            // Loading
-            Positioned(
-              child: isLoading
-                  ? Container(
+                  // Loading
+                  Positioned(
+                    child: isLoading
+                        ? Container(
                       child: Center(
                         child: CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(themeColor),
@@ -158,9 +178,14 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                       color: Colors.white.withOpacity(0.8),
                     )
-                  : Container(),
-            ),
+                        : Container(),
+                  ),
+                ],
+              ),
+            )
           ],
-        ));
+        ),
+      ),
+    );
   }
 }

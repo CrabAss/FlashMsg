@@ -16,7 +16,6 @@ import 'package:flashmsg/friends_bloc.dart';
 import 'package:flashmsg/friend_model.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 
 void main() => runApp(MyApp());
@@ -47,6 +46,8 @@ class MainScreenState extends State<MainScreen> {
   FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
 
   bool isLoading = false;
+  bool isSigningOut = false;
+
   List<Choice> choices = const <Choice>[
     const Choice(title: 'Settings', icon: Icons.settings),
     const Choice(title: 'Log out', icon: Icons.exit_to_app),
@@ -158,8 +159,9 @@ class MainScreenState extends State<MainScreen> {
                         child: Text(
                           '${document.nickname}',
                           style: TextStyle(
-                            color: primaryColor,
+                            color: Colors.black,
                             fontSize: 18,
+                            fontWeight: FontWeight.w600
                           ),
                         ),
                         alignment: Alignment.centerLeft,
@@ -169,7 +171,10 @@ class MainScreenState extends State<MainScreen> {
                         child: Container(
                           child: Text(
                             '${document.lastMsg}',
-                            style: TextStyle(color: Colors.black45),
+                            style: TextStyle(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w400
+                            ),
                           ),
                           alignment: Alignment.centerLeft,
                           margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
@@ -193,10 +198,9 @@ class MainScreenState extends State<MainScreen> {
                         )));
           },
 //          color: greyColor2,
-          padding: EdgeInsets.fromLTRB(10.0, 10.0, 10.0, 10.0),
+          padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
 //          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
-        margin: EdgeInsets.only(bottom: 10.0, left: 5.0, right: 5.0),
       );
     }
   }
@@ -214,6 +218,7 @@ class MainScreenState extends State<MainScreen> {
   Future<Null> handleSignOut() async {
     this.setState(() {
       isLoading = true;
+      isSigningOut = true;
     });
 
     await FirebaseAuth.instance.signOut();
@@ -230,7 +235,10 @@ class MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-//    bloc.batchUpdateFriends();
+    try {
+      if (isSigningOut == false)
+        bloc.batchUpdateFriends();
+    } catch (e) {}
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -291,10 +299,11 @@ class MainScreenState extends State<MainScreen> {
                   } else {
                     return RefreshIndicator(
                       onRefresh: () => bloc.batchUpdateFriends(),
-                      child: ListView.builder(
-                        padding: EdgeInsets.all(10.0),
+                      child: ListView.separated(
+                        padding: EdgeInsets.all(4.0),
                         itemBuilder: (context, index) => buildItem(context, snapshot.data[index]),
                         itemCount: snapshot.data.length,
+                        separatorBuilder: (BuildContext context, int index) => Divider(color: greyColor2, indent: 82, height: 1,),
                       ),
                     );
                   }

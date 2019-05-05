@@ -8,6 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flashmsg/const.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 
 final String URI_PREFIX = "flashmsg://user/";
@@ -33,11 +34,22 @@ class _ScanState extends State<ScanScreen> {
   String myIdURI;
   String myId;
 
+  bool isLoading = false;
+
   _ScanState({Key key, @required this.myIdURI, @required this.myId});
 
   @override
   initState() {
     super.initState();
+  }
+
+  Future<AsyncSnapshot> getMyData() async {
+    prefs = await SharedPreferences.getInstance();
+    Map result = Map();
+    result['nickname'] = prefs.getString('nickname') ?? '';
+    result['aboutMe'] = prefs.getString('aboutMe') ?? '';
+    result['photoUrl'] = prefs.getString('photoUrl') ?? '';
+    return AsyncSnapshot.withData(ConnectionState.done, result);
   }
 
   @override
@@ -46,42 +58,92 @@ class _ScanState extends State<ScanScreen> {
         appBar: AppBar(
           title: Text('Add new friends'),
         ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Center(
-                child: RepaintBoundary(
-                  key: globalKey,
-                  child: QrImage(
-                    data: myIdURI,
-                    size: 300,
-                    onError: (ex) {
-                      print("[QR] ERROR - $ex");
-                      setState((){
-                        this.barcode = "Error! Maybe your input value is too long?";
-                      });
-                    },
-                  ),
+        body: Stack(
+          children: <Widget>[
+            Container(
+              decoration: BoxDecoration(color: greyColor2),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Expanded(
+                      child: Center(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [new BoxShadow(blurRadius: 8, color: greyColor)],
+                            borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                            color: whiteColor,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                RepaintBoundary(
+                                  key: globalKey,
+                                  child: QrImage(
+                                    data: myIdURI,
+                                    size: 300,
+                                    onError: (ex) {
+                                      print("[QR] ERROR - $ex");
+                                      setState((){
+                                        this.barcode = "Error! Maybe your input value is too long?";
+                                      });
+                                    },
+                                  ),
+                                ),
+                                Container(
+                                  width: 300,
+                                  padding: EdgeInsets.all(8),
+                                  child: FutureBuilder<AsyncSnapshot>(
+                                    future: getMyData(),
+                                    builder: (BuildContext context, AsyncSnapshot snapshot) {
+                                      if (!snapshot.hasData) {
+                                        return Center(
+                                          child: CircularProgressIndicator(
+                                            valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                                          ),
+                                        );
+                                      } else {
+                                        return mePreview(snapshot.data.data);
+                                      }
+                                    },
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: RaisedButton(
+                        child: const Text('SCAN QR CODE', style: TextStyle(fontSize: 16),),
+                        color: themeColor,
+                        textColor: Colors.white,
+                        splashColor: themeColor.shade200,
+                        onPressed: scan,
+                        padding: EdgeInsets.fromLTRB(30.0, 10.0, 30.0, 10.0),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: RaisedButton(
-                    color: themeColor,
-                    textColor: Colors.white,
-                    splashColor: themeColor.shade100,
-                    onPressed: scan,
-                    child: const Text('SCAN QR CODE')
+            ),
+            Positioned(
+              child: isLoading
+                  ? Container(
+                child: Center(
+                  child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
                 ),
-              ),
-              Padding(  // FOR TESTING PURPOSE ONLY
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Text(barcode, textAlign: TextAlign.center,),
-              ),
-            ],
-          ),
+                color: Colors.white.withOpacity(0.8),
+              )
+                  : Container(),
+            )
+
+          ],
         ));
   }
 
@@ -89,6 +151,7 @@ class _ScanState extends State<ScanScreen> {
     try {
       String barcode = await BarcodeScanner.scan();
       setState(() {
+        isLoading = true;
         findFriend(barcode);
         return this.barcode = barcode;
       });
@@ -127,6 +190,128 @@ class _ScanState extends State<ScanScreen> {
     );
   }
 
+  Widget friendPreview(DocumentSnapshot document) {
+    return Row(
+      children: <Widget>[
+        Material(
+          child: CachedNetworkImage(
+            placeholder: (context, url) => Container(
+              child: CircularProgressIndicator(
+                strokeWidth: 1.0,
+                valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+              ),
+              width: 50.0,
+              height: 50.0,
+              padding: EdgeInsets.all(15.0),
+            ),
+            imageUrl: document['photoUrl'],
+            width: 50.0,
+            height: 50.0,
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.all(Radius.circular(25.0)),
+          clipBehavior: Clip.hardEdge,
+        ),
+        Flexible(
+          child: Container(
+            child: Column(
+              children: <Widget>[
+                Container(
+                  child: Text(
+                    '${document['nickname']}',
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600
+                    ),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
+                ),
+                Visibility(
+                  child: Container(
+                    child: Text(
+                      '${document['aboutMe']}',
+                      style: TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w400
+                      ),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                  ),
+                  visible: document['aboutMe'] == null ? false : true,
+                )
+              ],
+            ),
+            margin: EdgeInsets.only(left: 10.0),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget mePreview(Map document) {
+    return Row(
+      children: <Widget>[
+        Material(
+          child: CachedNetworkImage(
+            placeholder: (context, url) => Container(
+              child: CircularProgressIndicator(
+                strokeWidth: 1.0,
+                valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+              ),
+              width: 50.0,
+              height: 50.0,
+              padding: EdgeInsets.all(15.0),
+            ),
+            imageUrl: document['photoUrl'],
+            width: 50.0,
+            height: 50.0,
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.all(Radius.circular(25.0)),
+          clipBehavior: Clip.hardEdge,
+        ),
+        Flexible(
+          child: Container(
+            child: Column(
+              children: <Widget>[
+                Container(
+                  child: Text(
+                    '${document['nickname']}',
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600
+                    ),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
+                ),
+                Visibility(
+                  child: Container(
+                    child: Text(
+                      '${document['aboutMe']}',
+                      style: TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w400
+                      ),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
+                  ),
+                  visible: document['aboutMe'] == "" ? false : true,
+                )
+              ],
+            ),
+            margin: EdgeInsets.only(left: 10.0),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showConfirmationDialog(DocumentSnapshot document) {
     showDialog(
       context: context,
@@ -145,60 +330,7 @@ class _ScanState extends State<ScanScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 25.0),
-                child: Row(
-                  children: <Widget>[
-                    Material(
-                      child: CachedNetworkImage(
-                        placeholder: (context, url) => Container(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.0,
-                            valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-                          ),
-                          width: 50.0,
-                          height: 50.0,
-                          padding: EdgeInsets.all(15.0),
-                        ),
-                        imageUrl: document['photoUrl'],
-                        width: 50.0,
-                        height: 50.0,
-                        fit: BoxFit.cover,
-                      ),
-                      borderRadius: BorderRadius.all(Radius.circular(25.0)),
-                      clipBehavior: Clip.hardEdge,
-                    ),
-                    Flexible(
-                      child: Container(
-                        child: Column(
-                          children: <Widget>[
-                            Container(
-                              child: Text(
-                                '${document['nickname']}',
-                                style: TextStyle(
-                                  color: primaryColor,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              alignment: Alignment.centerLeft,
-                              margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
-                            ),
-                            Visibility(
-                              child: Container(
-                                child: Text(
-                                  '${document['aboutMe']}',
-                                  style: TextStyle(color: Colors.black45),
-                                ),
-                                alignment: Alignment.centerLeft,
-                                margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
-                              ),
-                              visible: document['aboutMe'] == null ? false : true,
-                            )
-                          ],
-                        ),
-                        margin: EdgeInsets.only(left: 10.0),
-                      ),
-                    ),
-                  ],
-                ),
+                child: friendPreview(document),
               ),
             ],
           ),
@@ -212,7 +344,10 @@ class _ScanState extends State<ScanScreen> {
             FlatButton(
               child: Text("CONFIRM"),
               onPressed: () {
-                addNewFriend(document);
+                setState(() {
+                  isLoading = true;
+                  addNewFriend(document);
+                });
                 Navigator.of(context).pop();
               },
             ),
@@ -234,19 +369,31 @@ class _ScanState extends State<ScanScreen> {
           .where('id', isEqualTo: userId).getDocuments();
       List<DocumentSnapshot> documents = result.documents;
       if (documents.length > 0) {
-        _showAlertDialog("This user is your friend already.");
+        setState(() {
+          isLoading = false;
+          _showAlertDialog("This user is your friend already.");
+        });
         return;
       }
       result = await Firestore.instance
           .collection('users').where('id', isEqualTo: userId).getDocuments();
       documents = result.documents;
       if (documents.length == 0) {
-        _showAlertDialog("This user does not exist in FlashMsg.");
+        setState(() {
+          isLoading = false;
+          _showAlertDialog("This user does not exist in FlashMsg.");
+        });
         return;
       }
-      _showConfirmationDialog(documents[0]);
+      setState(() {
+        isLoading = false;
+        _showConfirmationDialog(documents[0]);
+      });
     } else {
-      _showAlertDialog("This QR code is not generated by FlashMsg.");
+      setState(() {
+        isLoading = false;
+        _showAlertDialog("This QR code is not generated by FlashMsg.");
+      });
     }
   }
 
@@ -271,6 +418,9 @@ class _ScanState extends State<ScanScreen> {
         .setData({
           'id': myId,
     });
-
+    setState(() {
+      isLoading = false;
+      Fluttertoast.showToast(msg: "Added successfully!");
+    });
   }
 }

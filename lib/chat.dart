@@ -7,10 +7,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flashmsg/const.dart';
 import 'package:flashmsg/friends_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vibration/vibration.dart';
 
 class Chat extends StatelessWidget {
   final String peerId;
@@ -183,24 +185,33 @@ class ChatScreenState extends State<ChatScreen> {
           document['type'] == 0
               // Text
               ? Flexible(
-                  child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MAX_WIDTH,
-                  ),
-                  child: Text(
-                    document['content'],
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: 16,
+                  child: GestureDetector(
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxWidth: MAX_WIDTH,
+                      ),
+                      child: Text(
+                        document['content'],
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontSize: 16,
+                        ),
+                      ),
+                      padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
+                      decoration:
+                          BoxDecoration(color: whiteColor, borderRadius: radius),
+                      margin: EdgeInsets.only(
+                          bottom: isLastMessageRight(index) ? 20.0 : 2.0,
+                          right: 10.0),
                     ),
-                  ),
-                  padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
-                  decoration:
-                      BoxDecoration(color: whiteColor, borderRadius: radius),
-                  margin: EdgeInsets.only(
-                      bottom: isLastMessageRight(index) ? 20.0 : 2.0,
-                      right: 10.0),
-                ))
+                    onLongPress: () {
+                      Clipboard.setData(ClipboardData(text: document['content'])).then((void res) {
+                        Vibration.vibrate(duration: 100);
+                        Fluttertoast.showToast(msg: "Copied to clipboard");
+                      });
+                    },
+                  )
+                )
               : Container(
                   child: Material(
                     child: CachedNetworkImage(
@@ -288,20 +299,29 @@ class ChatScreenState extends State<ChatScreen> {
                     : Container(width: 35.0),
                 document['type'] == 0
                     ? Flexible(
-                        child: Container(
-                        constraints: BoxConstraints(maxWidth: MAX_WIDTH - 40.0),
-                        child: Text(
-                          document['content'],
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
+                        child: GestureDetector(
+                          child: Container(
+                            constraints: BoxConstraints(maxWidth: MAX_WIDTH - 40.0),
+                            child: Text(
+                              document['content'],
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                            padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
+                            decoration: BoxDecoration(
+                                color: themeColor, borderRadius: radius),
+                            margin: EdgeInsets.only(left: 5.0),
                           ),
-                        ),
-                        padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
-                        decoration: BoxDecoration(
-                            color: themeColor, borderRadius: radius),
-                        margin: EdgeInsets.only(left: 5.0),
-                      ))
+                          onLongPress: () {
+                            Clipboard.setData(ClipboardData(text: document['content'])).then((void res) {
+                              Vibration.vibrate(duration: 100);
+                              Fluttertoast.showToast(msg: "Copied to clipboard");
+                            });
+                          },
+                        )
+                      )
                     : Container(
                         child: Material(
                           child: CachedNetworkImage(

@@ -18,13 +18,10 @@ class DBProvider {
   SharedPreferences prefs;
 
   Future<Database> get database async {
-//    print("!!!!Get database");
     if (_database != null)
       return _database;
 
     prefs = await SharedPreferences.getInstance();
-//    print("!!!!_DATABASE = NULL and id = " + prefs.getString("id"));
-    // if _database is null we instantiate it
     _database = await initDB(prefs.getString("id"));
     return _database;
   }
