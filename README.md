@@ -1,16 +1,15 @@
-# flashmsg
+# FlashMsg
 
-An instant messaging platform.
+An instant messaging platform written in Flutter. Powered by Google Firebase.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+* Instant messaging with text or pictures.
+* Sign in with Google account.
+* Add new friend by scanning QR code.
+* Push notification implemented using Firebase Cloud Functions and Firebase Cloud Messaging.
+* Update user's profile (including avatar).
 
-A few resources to get you started if this is your first Flutter project:
+## Acknowledgement
 
-- [Lab: Write your first Flutter app](https://flutter.io/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.io/docs/cookbook)
-
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.io/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
+This app is inspired by [duytq94/flutter-chat-demo](https://github.com/duytq94/flutter-chat-demo). 
