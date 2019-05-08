@@ -4,13 +4,16 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
 import 'package:flashmsg/const.dart';
-import 'package:flashmsg/friends_bloc.dart';
+import 'package:flashmsg/db/friend/bloc.dart';
+import 'package:flashmsg/photo_view.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
@@ -18,12 +21,14 @@ class Chat extends StatelessWidget {
   final String peerId;
   final String peerNickname;
   final String peerAvatar;
+  final FriendBloc friendBloc;
 
   Chat(
       {Key key,
       @required this.peerId,
       @required this.peerNickname,
-      @required this.peerAvatar})
+      @required this.peerAvatar,
+      @required this.friendBloc})
       : super(key: key);
 
   @override
@@ -38,6 +43,7 @@ class Chat extends StatelessWidget {
       body: new ChatScreen(
         peerId: peerId,
         peerAvatar: peerAvatar,
+        friendBloc: friendBloc,
       ),
     );
   }
@@ -46,17 +52,26 @@ class Chat extends StatelessWidget {
 class ChatScreen extends StatefulWidget {
   final String peerId;
   final String peerAvatar;
+  final FriendBloc friendBloc;
 
-  ChatScreen({Key key, @required this.peerId, @required this.peerAvatar})
+  ChatScreen(
+      {Key key,
+      @required this.peerId,
+      @required this.peerAvatar,
+      @required this.friendBloc})
       : super(key: key);
 
   @override
-  State createState() =>
-      new ChatScreenState(peerId: peerId, peerAvatar: peerAvatar);
+  State createState() => new ChatScreenState(
+      peerId: peerId, peerAvatar: peerAvatar, friendBloc: friendBloc);
 }
 
 class ChatScreenState extends State<ChatScreen> {
-  ChatScreenState({Key key, @required this.peerId, @required this.peerAvatar});
+  ChatScreenState(
+      {Key key,
+      @required this.peerId,
+      @required this.peerAvatar,
+      @required this.friendBloc});
 
   String peerId;
   String peerAvatar;
@@ -70,13 +85,13 @@ class ChatScreenState extends State<ChatScreen> {
   bool isLoading;
   String imageUrl;
 
-  final bloc = FriendsBloc();
+  final FriendBloc friendBloc;
 
-  @override
+/*  @override
   void dispose() {
-    bloc.dispose();
+    friendBloc.dispose();
     super.dispose();
-  }
+  }*/
 
   final TextEditingController textEditingController =
       new TextEditingController();
@@ -161,7 +176,7 @@ class ChatScreenState extends State<ChatScreen> {
           },
         );
       });
-      bloc.updateFriend(peerId, now, content);
+      friendBloc.updateFriend(peerId, now, type == 1 ? "[Image]" : content);
       listScrollController.animateTo(0.0,
           duration: Duration(milliseconds: 300), curve: Curves.easeOut);
     } else {
@@ -186,66 +201,78 @@ class ChatScreenState extends State<ChatScreen> {
               // Text
               ? Flexible(
                   child: GestureDetector(
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxWidth: MAX_WIDTH,
-                      ),
-                      child: Text(
-                        document['content'],
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontSize: 16,
-                        ),
-                      ),
-                      padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
-                      decoration:
-                          BoxDecoration(color: whiteColor, borderRadius: radius),
-                      margin: EdgeInsets.only(
-                          bottom: isLastMessageRight(index) ? 20.0 : 2.0,
-                          right: 10.0),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MAX_WIDTH,
                     ),
-                    onLongPress: () {
-                      Clipboard.setData(ClipboardData(text: document['content'])).then((void res) {
-                        Vibration.vibrate(duration: 100);
-                        Fluttertoast.showToast(msg: "Copied to clipboard");
-                      });
-                    },
-                  )
-                )
+                    child: Text(
+                      document['content'],
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontSize: 16,
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
+                    decoration:
+                        BoxDecoration(color: whiteColor, borderRadius: radius),
+                    margin: EdgeInsets.only(
+                        bottom: isLastMessageRight(index) ? 20.0 : 2.0,
+                        right: 10.0),
+                  ),
+                  onLongPress: () {
+                    Clipboard.setData(ClipboardData(text: document['content']))
+                        .then((void res) {
+                      Vibration.vibrate(duration: 50);
+                      Fluttertoast.showToast(msg: "Copied to clipboard");
+                    });
+                  },
+                ))
               : Container(
                   child: Material(
-                    child: CachedNetworkImage(
-                      placeholder: (context, url) => Container(
-                            child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(themeColor),
-                            ),
-                            width: 200.0,
-                            height: 200.0,
-                            padding: EdgeInsets.all(70.0),
-                            decoration: BoxDecoration(
-                              color: greyColor2,
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(8.0),
+                    child: GestureDetector(
+                      child: Hero(
+                        tag: document['content'],
+                        child: CachedNetworkImage(
+                          placeholder: (context, url) => Container(
+                                child: CircularProgressIndicator(
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(themeColor),
+                                ),
+                                width: 200.0,
+                                height: 200.0,
+                                padding: EdgeInsets.all(70.0),
+                                decoration: BoxDecoration(
+                                  color: greyColor2,
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(8.0),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                      errorWidget: (context, url, error) => Material(
-                            child: Image.asset(
-                              'images/img_not_available.jpeg',
-                              width: 200.0,
-                              height: 200.0,
-                              fit: BoxFit.cover,
-                            ),
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(8.0),
-                            ),
-                            clipBehavior: Clip.hardEdge,
-                          ),
-                      imageUrl: document['content'],
-                      width: 200.0,
-                      height: 200.0,
-                      fit: BoxFit.cover,
+                          errorWidget: (context, url, error) => Material(
+                                child: Image.asset(
+                                  'images/img_not_available.jpeg',
+                                  width: 200.0,
+                                  height: 200.0,
+                                  fit: BoxFit.cover,
+                                ),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(8.0),
+                                ),
+                                clipBehavior: Clip.hardEdge,
+                              ),
+                          imageUrl: document['content'],
+                          width: 200.0,
+                          height: 200.0,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      onTap: () => Navigator.push(
+                          context,
+                          PageTransition(
+                              child: PhotoViewPage(photoUrl: document['content']),
+                              type: PageTransitionType.fade
+                          )
+                      ),
                     ),
                     borderRadius: BorderRadius.all(Radius.circular(8.0)),
                     clipBehavior: Clip.hardEdge,
@@ -300,63 +327,77 @@ class ChatScreenState extends State<ChatScreen> {
                 document['type'] == 0
                     ? Flexible(
                         child: GestureDetector(
-                          child: Container(
-                            constraints: BoxConstraints(maxWidth: MAX_WIDTH - 40.0),
-                            child: Text(
-                              document['content'],
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
+                        child: Container(
+                          constraints:
+                              BoxConstraints(maxWidth: MAX_WIDTH - 40.0),
+                          child: Text(
+                            document['content'],
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
                             ),
-                            padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
-                            decoration: BoxDecoration(
-                                color: themeColor, borderRadius: radius),
-                            margin: EdgeInsets.only(left: 5.0),
                           ),
-                          onLongPress: () {
-                            Clipboard.setData(ClipboardData(text: document['content'])).then((void res) {
-                              Vibration.vibrate(duration: 100);
-                              Fluttertoast.showToast(msg: "Copied to clipboard");
-                            });
-                          },
-                        )
-                      )
+                          padding: EdgeInsets.fromLTRB(15.0, 10.0, 15.0, 10.0),
+                          decoration: BoxDecoration(
+                              color: themeColor, borderRadius: radius),
+                          margin: EdgeInsets.only(left: 5.0),
+                        ),
+                        onLongPress: () {
+                          Clipboard.setData(
+                                  ClipboardData(text: document['content']))
+                              .then((void res) {
+                            Vibration.vibrate(duration: 50);
+                            Fluttertoast.showToast(msg: "Copied to clipboard");
+                          });
+                        },
+                      ))
                     : Container(
                         child: Material(
-                          child: CachedNetworkImage(
-                            placeholder: (context, url) => Container(
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        themeColor),
-                                  ),
-                                  width: 200.0,
-                                  height: 200.0,
-                                  padding: EdgeInsets.all(70.0),
-                                  decoration: BoxDecoration(
-                                    color: greyColor2,
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(8.0),
+                          child: GestureDetector(
+                            child: Hero(
+                              tag: document['content'],
+                              child: CachedNetworkImage(
+                                placeholder: (context, url) => Container(
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                themeColor),
+                                      ),
+                                      width: 200.0,
+                                      height: 200.0,
+                                      padding: EdgeInsets.all(70.0),
+                                      decoration: BoxDecoration(
+                                        color: greyColor2,
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(8.0),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                            errorWidget: (context, url, error) => Material(
-                                  child: Image.asset(
-                                    'images/img_not_available.jpeg',
-                                    width: 200.0,
-                                    height: 200.0,
-                                    fit: BoxFit.cover,
-                                  ),
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(8.0),
-                                  ),
-                                  clipBehavior: Clip.hardEdge,
-                                ),
-                            imageUrl: document['content'],
-                            width: 200.0,
-                            height: 200.0,
-                            fit: BoxFit.cover,
-                          ),
+                                errorWidget: (context, url, error) => Material(
+                                      child: Image.asset(
+                                        'images/img_not_available.jpeg',
+                                        width: 200.0,
+                                        height: 200.0,
+                                        fit: BoxFit.cover,
+                                      ),
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(8.0),
+                                      ),
+                                      clipBehavior: Clip.hardEdge,
+                                    ),
+                                imageUrl: document['content'],
+                                width: 200.0,
+                                height: 200.0,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            onTap: () => Navigator.push(
+                                context,
+                                PageTransition(
+                                    child: PhotoViewPage(photoUrl: document['content']),
+                                    type: PageTransitionType.fade
+                                )
+                            ),                          ),
                           borderRadius: BorderRadius.all(Radius.circular(8.0)),
                           clipBehavior: Clip.hardEdge,
                         ),

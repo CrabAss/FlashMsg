@@ -5,18 +5,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flashmsg/chat.dart';
 import 'package:flashmsg/const.dart';
+import 'package:flashmsg/db/friend/bloc.dart';
+import 'package:flashmsg/db/friend/model.dart';
 import 'package:flashmsg/login.dart';
-import 'package:flashmsg/settings.dart';
 import 'package:flashmsg/qr_scan.dart';
-import 'package:flashmsg/friends_bloc.dart';
-import 'package:flashmsg/friend_model.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flashmsg/settings.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:intl/intl.dart';
 
 void main() => runApp(MyApp());
 
@@ -33,11 +33,11 @@ class MainScreenState extends State<MainScreen> {
   MainScreenState({Key key, @required this.currentUserId});
 
   final String currentUserId;
-  final bloc = FriendsBloc();
+  final friendBloc = FriendBloc();
 
   @override
   void dispose() {
-    bloc.dispose();
+    friendBloc.dispose();
     super.dispose();
   }
 
@@ -57,12 +57,15 @@ class MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     firebaseCloudMessaging_Listeners();
+    setState(() {
+      friendBloc.batchUpdateFriends();
+    });
   }
 
   void firebaseCloudMessaging_Listeners() async {
     if (Platform.isIOS) iOS_Permission();
 
-    _firebaseMessaging.getToken().then((token){
+    _firebaseMessaging.getToken().then((token) {
       print(token);
       Firestore.instance
           .collection('fcm_tokens')
@@ -95,20 +98,19 @@ class MainScreenState extends State<MainScreen> {
   }
 
   void handleNewMessage(Map<String, dynamic> message) {
-    bloc.updateFriend(message["data"]["senderId"], message["data"]["timestamp"], message["notification"]["body"]);
+    friendBloc.updateFriend(message["data"]["senderId"],
+        message["data"]["timestamp"], message["notification"]["body"]);
   }
 
   void handleNewFriend(Map<String, dynamic> message) {
-    bloc.newFriend(message['data']['friendId']);
+    friendBloc.newFriend(message['data']['friendId']);
   }
 
   void iOS_Permission() {
     _firebaseMessaging.requestNotificationPermissions(
-        IosNotificationSettings(sound: true, badge: true, alert: true)
-    );
+        IosNotificationSettings(sound: true, badge: true, alert: true));
     _firebaseMessaging.onIosSettingsRegistered
-        .listen((IosNotificationSettings settings)
-    {
+        .listen((IosNotificationSettings settings) {
       print("Settings registered: $settings");
     });
   }
@@ -156,29 +158,45 @@ class MainScreenState extends State<MainScreen> {
                   child: Column(
                     children: <Widget>[
                       Container(
-                        child: Text(
-                          '${document.nickname}',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: <Widget>[
+                            Text(
+                              '${document.nickname}',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              DateFormat('dd MMM kk:mm').format(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                      int.parse(document.lastMsgDate))),
+                              style: TextStyle(
+                                  color: Colors.black54,
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 12),
+                            )
+                          ],
                         ),
                         alignment: Alignment.centerLeft,
                         margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
                       ),
-                      Visibility(
-                        child: Container(
-                          child: Text(
-                            '${document.lastMsg}',
-                            style: TextStyle(
-                                color: Colors.black54,
-                                fontWeight: FontWeight.w400
-                            ),
+                      Container(
+                        child: Text(
+                          '${document.lastMsg}',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: TextStyle(
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w400,
                           ),
-                          alignment: Alignment.centerLeft,
-                          margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
                         ),
+                        alignment: Alignment.centerLeft,
+                        margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
                       )
                     ],
                   ),
@@ -195,6 +213,7 @@ class MainScreenState extends State<MainScreen> {
                           peerId: document.id,
                           peerNickname: document.nickname ?? "Unknown",
                           peerAvatar: document.photoUrl,
+                          friendBloc: friendBloc,
                         )));
           },
 //          color: greyColor2,
@@ -211,7 +230,8 @@ class MainScreenState extends State<MainScreen> {
     if (choice.title == 'Log out') {
       handleSignOut();
     } else {
-      Navigator.push(context, CupertinoPageRoute(builder: (context) => Settings()));
+      Navigator.push(
+          context, CupertinoPageRoute(builder: (context) => Settings()));
     }
   }
 
@@ -229,16 +249,17 @@ class MainScreenState extends State<MainScreen> {
       isLoading = false;
     });
 
-    Navigator.of(context)
-        .pushAndRemoveUntil(CupertinoPageRoute(builder: (context) => MyApp()), (Route<dynamic> route) => false);
+    Navigator.of(context).pushAndRemoveUntil(
+        CupertinoPageRoute(builder: (context) => MyApp()),
+        (Route<dynamic> route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
-    try {
+/*    try {
       if (isSigningOut == false)
         bloc.batchUpdateFriends();
-    } catch (e) {}
+    } catch (e) {}*/
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -252,7 +273,8 @@ class MainScreenState extends State<MainScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                CupertinoPageRoute(builder: (context) => ScanScreen(currentUserId)),
+                CupertinoPageRoute(
+                    builder: (context) => ScanScreen(currentUserId)),
               );
             },
           ),
@@ -288,7 +310,7 @@ class MainScreenState extends State<MainScreen> {
             // List
             Container(
               child: StreamBuilder(
-                stream: bloc.friends,
+                stream: friendBloc.friends,
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return Center(
@@ -298,12 +320,18 @@ class MainScreenState extends State<MainScreen> {
                     );
                   } else {
                     return RefreshIndicator(
-                      onRefresh: () => bloc.batchUpdateFriends(),
+                      onRefresh: () => friendBloc.batchUpdateFriends(),
                       child: ListView.separated(
                         padding: EdgeInsets.all(4.0),
-                        itemBuilder: (context, index) => buildItem(context, snapshot.data[index]),
+                        itemBuilder: (context, index) =>
+                            buildItem(context, snapshot.data[index]),
                         itemCount: snapshot.data.length,
-                        separatorBuilder: (BuildContext context, int index) => Divider(color: greyColor2, indent: 82, height: 1,),
+                        separatorBuilder: (BuildContext context, int index) =>
+                            Divider(
+                              color: greyColor2,
+                              indent: 82,
+                              height: 1,
+                            ),
                       ),
                     );
                   }
@@ -316,7 +344,9 @@ class MainScreenState extends State<MainScreen> {
               child: isLoading
                   ? Container(
                       child: Center(
-                        child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
+                        child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(themeColor)),
                       ),
                       color: Colors.white.withOpacity(0.8),
                     )
@@ -328,7 +358,6 @@ class MainScreenState extends State<MainScreen> {
       ),
     );
   }
-
 }
 
 class Choice {

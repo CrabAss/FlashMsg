@@ -1,23 +1,19 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:barcode_scan/barcode_scan.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flashmsg/const.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
-
-final String URI_PREFIX = "flashmsg://user/";
-final String NEW_FRIEND_MSG = "Say \"Hi\" to your new friend!";
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScanScreen extends StatefulWidget {
   String myIdURI;
   String myId;
-  ScanScreen (@required String myId) {
+  ScanScreen(@required String myId) {
     this.myIdURI = URI_PREFIX + myId;
     this.myId = myId;
   }
@@ -37,11 +33,6 @@ class _ScanState extends State<ScanScreen> {
   bool isLoading = false;
 
   _ScanState({Key key, @required this.myIdURI, @required this.myId});
-
-  @override
-  initState() {
-    super.initState();
-  }
 
   Future<AsyncSnapshot> getMyData() async {
     prefs = await SharedPreferences.getInstance();
@@ -71,8 +62,11 @@ class _ScanState extends State<ScanScreen> {
                       child: Center(
                         child: Container(
                           decoration: BoxDecoration(
-                            boxShadow: [new BoxShadow(blurRadius: 8, color: greyColor)],
-                            borderRadius: BorderRadius.all(Radius.circular(4.0)),
+                            boxShadow: [
+                              new BoxShadow(blurRadius: 8, color: greyColor)
+                            ],
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(4.0)),
                             color: whiteColor,
                           ),
                           child: Padding(
@@ -87,8 +81,9 @@ class _ScanState extends State<ScanScreen> {
                                     size: 300,
                                     onError: (ex) {
                                       print("[QR] ERROR - $ex");
-                                      setState((){
-                                        this.barcode = "Error! Maybe your input value is too long?";
+                                      setState(() {
+                                        this.barcode =
+                                            "Error! Maybe your input value is too long?";
                                       });
                                     },
                                   ),
@@ -98,11 +93,14 @@ class _ScanState extends State<ScanScreen> {
                                   padding: EdgeInsets.all(8),
                                   child: FutureBuilder<AsyncSnapshot>(
                                     future: getMyData(),
-                                    builder: (BuildContext context, AsyncSnapshot snapshot) {
+                                    builder: (BuildContext context,
+                                        AsyncSnapshot snapshot) {
                                       if (!snapshot.hasData) {
                                         return Center(
                                           child: CircularProgressIndicator(
-                                            valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                    themeColor),
                                           ),
                                         );
                                       } else {
@@ -118,9 +116,13 @@ class _ScanState extends State<ScanScreen> {
                       ),
                     ),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: RaisedButton(
-                        child: const Text('SCAN QR CODE', style: TextStyle(fontSize: 16),),
+                        child: const Text(
+                          'SCAN QR CODE',
+                          style: TextStyle(fontSize: 16),
+                        ),
                         color: themeColor,
                         textColor: Colors.white,
                         splashColor: themeColor.shade200,
@@ -135,14 +137,15 @@ class _ScanState extends State<ScanScreen> {
             Positioned(
               child: isLoading
                   ? Container(
-                child: Center(
-                  child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
-                ),
-                color: Colors.white.withOpacity(0.8),
-              )
+                      child: Center(
+                        child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(themeColor)),
+                      ),
+                      color: Colors.white.withOpacity(0.8),
+                    )
                   : Container(),
             )
-
           ],
         ));
   }
@@ -163,7 +166,7 @@ class _ScanState extends State<ScanScreen> {
       } else {
         setState(() => _showAlertDialog('Unknown error: $e'));
       }
-    } on FormatException{
+    } on FormatException {
       // setState(() => _showDialog('You have not scanned anything!'));  // unnecessary
     } catch (e) {
       setState(() => _showAlertDialog('Unknown error: $e'));
@@ -196,14 +199,14 @@ class _ScanState extends State<ScanScreen> {
         Material(
           child: CachedNetworkImage(
             placeholder: (context, url) => Container(
-              child: CircularProgressIndicator(
-                strokeWidth: 1.0,
-                valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-              ),
-              width: 50.0,
-              height: 50.0,
-              padding: EdgeInsets.all(15.0),
-            ),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.0,
+                    valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                  ),
+                  width: 50.0,
+                  height: 50.0,
+                  padding: EdgeInsets.all(15.0),
+                ),
             imageUrl: document['photoUrl'],
             width: 50.0,
             height: 50.0,
@@ -222,8 +225,7 @@ class _ScanState extends State<ScanScreen> {
                     style: TextStyle(
                         color: Colors.black,
                         fontSize: 18,
-                        fontWeight: FontWeight.w600
-                    ),
+                        fontWeight: FontWeight.w600),
                   ),
                   alignment: Alignment.centerLeft,
                   margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
@@ -233,9 +235,7 @@ class _ScanState extends State<ScanScreen> {
                     child: Text(
                       '${document['aboutMe']}',
                       style: TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w400
-                      ),
+                          color: Colors.black54, fontWeight: FontWeight.w400),
                     ),
                     alignment: Alignment.centerLeft,
                     margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
@@ -257,14 +257,14 @@ class _ScanState extends State<ScanScreen> {
         Material(
           child: CachedNetworkImage(
             placeholder: (context, url) => Container(
-              child: CircularProgressIndicator(
-                strokeWidth: 1.0,
-                valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-              ),
-              width: 50.0,
-              height: 50.0,
-              padding: EdgeInsets.all(15.0),
-            ),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.0,
+                    valueColor: AlwaysStoppedAnimation<Color>(themeColor),
+                  ),
+                  width: 50.0,
+                  height: 50.0,
+                  padding: EdgeInsets.all(15.0),
+                ),
             imageUrl: document['photoUrl'],
             width: 50.0,
             height: 50.0,
@@ -283,8 +283,7 @@ class _ScanState extends State<ScanScreen> {
                     style: TextStyle(
                         color: Colors.black,
                         fontSize: 18,
-                        fontWeight: FontWeight.w600
-                    ),
+                        fontWeight: FontWeight.w600),
                   ),
                   alignment: Alignment.centerLeft,
                   margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 5.0),
@@ -294,9 +293,7 @@ class _ScanState extends State<ScanScreen> {
                     child: Text(
                       '${document['aboutMe']}',
                       style: TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w400
-                      ),
+                          color: Colors.black54, fontWeight: FontWeight.w400),
                     ),
                     alignment: Alignment.centerLeft,
                     margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
@@ -322,11 +319,7 @@ class _ScanState extends State<ScanScreen> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Row(
-                children: <Widget>[
-                  Text(
-                    "Is this the friend you want to add?"
-                  )
-                ],
+                children: <Widget>[Text("Is this the friend you want to add?")],
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 25.0),
@@ -355,7 +348,6 @@ class _ScanState extends State<ScanScreen> {
         );
       },
     );
-
   }
 
   void findFriend(String userURI) async {
@@ -366,7 +358,8 @@ class _ScanState extends State<ScanScreen> {
           .collection('users')
           .document(myId)
           .collection('friends')
-          .where('id', isEqualTo: userId).getDocuments();
+          .where('id', isEqualTo: userId)
+          .getDocuments();
       List<DocumentSnapshot> documents = result.documents;
       if (documents.length > 0) {
         setState(() {
@@ -376,7 +369,9 @@ class _ScanState extends State<ScanScreen> {
         return;
       }
       result = await Firestore.instance
-          .collection('users').where('id', isEqualTo: userId).getDocuments();
+          .collection('users')
+          .where('id', isEqualTo: userId)
+          .getDocuments();
       documents = result.documents;
       if (documents.length == 0) {
         setState(() {
@@ -407,16 +402,15 @@ class _ScanState extends State<ScanScreen> {
         .collection('friends')
         .document(document['id'])
         .setData({
-          'id': document['id'],
-        }
-    );
+      'id': document['id'],
+    });
     Firestore.instance
         .collection('users')
         .document(document['id'])
         .collection('friends')
         .document(myId)
         .setData({
-          'id': myId,
+      'id': myId,
     });
     setState(() {
       isLoading = false;

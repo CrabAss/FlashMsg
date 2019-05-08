@@ -2,14 +2,14 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flashmsg/const.dart';
 import 'package:flashmsg/main.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_auth_buttons/flutter_auth_buttons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_auth_buttons/flutter_auth_buttons.dart';
 
 class MyApp extends StatelessWidget {
   @override
@@ -58,7 +58,9 @@ class LoginScreenState extends State<LoginScreen> {
     if (isLoggedIn) {
       Navigator.push(
         context,
-        CupertinoPageRoute(builder: (context) => MainScreen(currentUserId: prefs.getString('id'))),
+        CupertinoPageRoute(
+            builder: (context) =>
+                MainScreen(currentUserId: prefs.getString('id'))),
       );
     }
 
@@ -82,19 +84,26 @@ class LoginScreenState extends State<LoginScreen> {
       idToken: googleAuth.idToken,
     );
 
-    FirebaseUser firebaseUser = await firebaseAuth.signInWithCredential(credential);
+    FirebaseUser firebaseUser =
+        await firebaseAuth.signInWithCredential(credential);
 
     if (firebaseUser != null) {
       // Check is already sign up
-      final QuerySnapshot result =
-          await Firestore.instance.collection('users').where('id', isEqualTo: firebaseUser.uid).getDocuments();
+      final QuerySnapshot result = await Firestore.instance
+          .collection('users')
+          .where('id', isEqualTo: firebaseUser.uid)
+          .getDocuments();
       final List<DocumentSnapshot> documents = result.documents;
       if (documents.length == 0) {
         // Update data to server if new user
         Firestore.instance
             .collection('users')
             .document(firebaseUser.uid)
-            .setData({'nickname': firebaseUser.displayName, 'photoUrl': firebaseUser.photoUrl, 'id': firebaseUser.uid});
+            .setData({
+          'nickname': firebaseUser.displayName,
+          'photoUrl': firebaseUser.photoUrl,
+          'id': firebaseUser.uid
+        });
 
         // Write data to local
         currentUser = firebaseUser;
@@ -109,15 +118,18 @@ class LoginScreenState extends State<LoginScreen> {
         await prefs.setString('aboutMe', documents[0]['aboutMe']);
       }
       print("pref already set: " + prefs.getString('id'));
-      Fluttertoast.showToast(msg: "Welcome, " + prefs.getString('nickname') + "!");
+      Fluttertoast.showToast(
+          msg: "Welcome, " + prefs.getString('nickname') + "!");
       this.setState(() {
         isLoading = false;
       });
 
-      Navigator.push(context,
-        CupertinoPageRoute(builder: (context) => MainScreen(
-          currentUserId: firebaseUser.uid,
-        )),
+      Navigator.push(
+        context,
+        CupertinoPageRoute(
+            builder: (context) => MainScreen(
+                  currentUserId: firebaseUser.uid,
+                )),
       );
     } else {
       Fluttertoast.showToast(msg: "Sign in fail");
@@ -149,8 +161,17 @@ class LoginScreenState extends State<LoginScreen> {
                           color: whiteColor,
                         ),
                       ),
-                      Text("Welcome to", style: TextStyle(color: whiteColor, fontSize: 24),),
-                      Text("FlashMsg", style: TextStyle(color: whiteColor, fontSize: 36, fontWeight: FontWeight.bold),),
+                      Text(
+                        "Welcome to",
+                        style: TextStyle(color: whiteColor, fontSize: 24),
+                      ),
+                      Text(
+                        "FlashMsg",
+                        style: TextStyle(
+                            color: whiteColor,
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                 ),
@@ -171,13 +192,14 @@ class LoginScreenState extends State<LoginScreen> {
                   Positioned(
                     child: isLoading
                         ? Container(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-                        ),
-                      ),
-                      color: Colors.white.withOpacity(0.8),
-                    )
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(themeColor),
+                              ),
+                            ),
+                            color: Colors.white.withOpacity(0.8),
+                          )
                         : Container(),
                   ),
                 ],

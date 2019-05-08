@@ -1,28 +1,26 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flashmsg/db/friend/model.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flashmsg/friend_model.dart';
 
-
-class DBProvider {
-
-  DBProvider._();
-  static final DBProvider db = DBProvider._();
+class FriendDAO {
+  FriendDAO._();
+  static final FriendDAO db = FriendDAO._();
   static Database _database;
 
   SharedPreferences prefs;
 
   Future<Database> get database async {
-    if (_database != null)
-      return _database;
+    if (_database != null) return _database;
 
     prefs = await SharedPreferences.getInstance();
     _database = await initDB(prefs.getString("id"));
+//    batchUpdateFriends();
     return _database;
   }
 
@@ -30,8 +28,8 @@ class DBProvider {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, "$myId.db");
     print("DB initialized at " + path);
-    return await openDatabase(path, version: 1, onOpen: (db) {
-    }, onCreate: (Database db, int version) async {
+    return await openDatabase(path, version: 1, onOpen: (db) {},
+        onCreate: (Database db, int version) async {
       await db.execute("CREATE TABLE Friend ("
           "id TEXT PRIMARY KEY,"
           "nickname TEXT,"
@@ -68,7 +66,8 @@ class DBProvider {
         .orderBy('timestamp', descending: true)
         .limit(1)
         .getDocuments();
-    final List<DocumentSnapshot> LastMessageDocuments = LastMessageQuery.documents;
+    final List<DocumentSnapshot> LastMessageDocuments =
+        LastMessageQuery.documents;
 
     return LastMessageDocuments.length == 0 ? null : LastMessageDocuments[0];
   }
@@ -99,13 +98,19 @@ class DBProvider {
         aboutMe: UserDocument['aboutMe'],
         photoUrl: UserDocument['photoUrl'],
         lastMsgDate: lastMsgDate,
-        lastMsg: lastMsg
-    );
+        lastMsg: lastMsg);
 
     var raw = await db.rawInsert(
         "INSERT Into Friend (id,nickname,aboutMe,photoUrl,last_msg_date,last_msg)"
-            " VALUES (?,?,?,?,?,?)",
-        [newFriend.id, newFriend.nickname, newFriend.aboutMe, newFriend.photoUrl, newFriend.lastMsgDate, newFriend.lastMsg]);
+        " VALUES (?,?,?,?,?,?)",
+        [
+          newFriend.id,
+          newFriend.nickname,
+          newFriend.aboutMe,
+          newFriend.photoUrl,
+          newFriend.lastMsgDate,
+          newFriend.lastMsg
+        ]);
     return newFriend;
   }
 
@@ -129,8 +134,8 @@ class DBProvider {
       friend.lastMsg = last_msg;
       print("Friend last message updated: " + last_msg);
     }
-    var res = await db.update("Friend", friend.toJson(),
-        where: "id = ?", whereArgs: [id]);
+    var res = await db
+        .update("Friend", friend.toJson(), where: "id = ?", whereArgs: [id]);
     return res;
   }
 
@@ -141,15 +146,18 @@ class DBProvider {
     QuerySnapshot onlineFriendListQuery = await Firestore.instance
         .collection('users')
         .document(myId)
-        .collection('friends').getDocuments();
+        .collection('friends')
+        .getDocuments();
     List<DocumentSnapshot> onlineFriendList = onlineFriendListQuery.documents;
     for (final friend in onlineFriendList) {
       print("Online friend: " + friend['id']);
-      final DocumentSnapshot LastMessageDocument = await getLastMsg(friend['id']);
+      final DocumentSnapshot LastMessageDocument =
+          await getLastMsg(friend['id']);
       if (LastMessageDocument == null) {
         updateFriend(friend['id']);
       } else {
-        updateFriend(friend['id'], LastMessageDocument['timestamp'], LastMessageDocument['content']);
+        updateFriend(friend['id'], LastMessageDocument['timestamp'],
+            LastMessageDocument['type'] == 1 ? "[Image]" : LastMessageDocument['content']);
       }
     }
   }
@@ -162,9 +170,10 @@ class DBProvider {
 
   Future<List<Friend>> getAllFriends() async {
     final db = await database;
-    var res = await db.query("Friend", orderBy: "CAST(last_msg_date AS INTEGER) DESC");
+    var res = await db.query("Friend",
+        orderBy: "CAST(last_msg_date AS INTEGER) DESC");
     List<Friend> list =
-    res.isNotEmpty ? res.map((c) => Friend.fromJson(c)).toList() : [];
+        res.isNotEmpty ? res.map((c) => Friend.fromJson(c)).toList() : [];
     return list;
   }
 
@@ -178,4 +187,3 @@ class DBProvider {
 //    db.rawDelete("Delete * from Friend");
 //  }
 }
-
