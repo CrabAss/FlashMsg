@@ -2,7 +2,7 @@
 
 [![LICENSE](https://img.shields.io/badge/license-Anti%20996-blue.svg)](https://github.com/996icu/996.ICU/blob/master/LICENSE)
 
-An instant messaging platform written in Flutter. Powered by Google Firebase. If you are wondering how this app looks like, please watch this [demo video](https://youtu.be/4FUYLS49YPI).
+An instant messaging platform written in Flutter. Powered by Google Firebase. If you are wondering how this app looks like, please watch this [demo video](https://youtu.be/n1iEMGjsG9Q).
 
 ## Features
 
