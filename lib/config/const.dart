@@ -8,5 +8,6 @@ final whiteColor = Colors.white;
 final greyColor = Color(0xffaeaeae);
 final greyColor2 = Color(0xffE8E8E8);
 
-final String URI_PREFIX = "flashmsg://user/";
-final String NEW_FRIEND_MSG = "Say \"Hi\" to your new friend!";
+final String appName = "FlashMsg";
+final String uriPrefix = "flashmsg://user/";
+final String newFriendMsg = "Say \"Hi\" to your new friend!";

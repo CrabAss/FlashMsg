@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flashmsg/config/const.dart';
 import 'package:flashmsg/db/friend/model.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -86,7 +87,7 @@ class FriendDAO {
 
     if (LastMessageDocument == null) {
       lastMsgDate = DateTime.now().millisecondsSinceEpoch.toString();
-      lastMsg = "Say \"Hi\" to your new friend!";
+      lastMsg = newFriendMsg;
     } else {
       lastMsgDate = LastMessageDocument['timestamp'];
       lastMsg = LastMessageDocument['content'];

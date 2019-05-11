@@ -3,26 +3,23 @@ import 'dart:async';
 import 'package:barcode_scan/barcode_scan.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flashmsg/const.dart';
+import 'package:flashmsg/config/const.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class ScanScreen extends StatefulWidget {
-  String myIdURI;
-  String myId;
-  ScanScreen(@required String myId) {
-    this.myIdURI = URI_PREFIX + myId;
-    this.myId = myId;
-  }
+class AddFriendScreen extends StatefulWidget {
+  final String myId;
+
+  const AddFriendScreen({Key key, this.myId}) : super(key: key);
 
   @override
-  _ScanState createState() => _ScanState(myIdURI: myIdURI, myId: myId);
+  AddFriendScreenState createState() => AddFriendScreenState(myIdURI: uriPrefix + myId, myId: myId);
 }
 
-class _ScanState extends State<ScanScreen> {
+class AddFriendScreenState extends State<AddFriendScreen> {
   String barcode = "";
   SharedPreferences prefs;
 
@@ -32,7 +29,7 @@ class _ScanState extends State<ScanScreen> {
 
   bool isLoading = false;
 
-  _ScanState({Key key, @required this.myIdURI, @required this.myId});
+  AddFriendScreenState({Key key, @required this.myIdURI, @required this.myId});
 
   Future<AsyncSnapshot> getMyData() async {
     prefs = await SharedPreferences.getInstance();
@@ -352,8 +349,8 @@ class _ScanState extends State<ScanScreen> {
 
   void findFriend(String userURI) async {
     String userId;
-    if (userURI.startsWith(URI_PREFIX)) {
-      userId = userURI.substring(URI_PREFIX.length);
+    if (userURI.startsWith(uriPrefix)) {
+      userId = userURI.substring(uriPrefix.length);
       QuerySnapshot result = await Firestore.instance
           .collection('users')
           .document(myId)
@@ -394,8 +391,6 @@ class _ScanState extends State<ScanScreen> {
 
   void addNewFriend(DocumentSnapshot document) async {
     prefs = await SharedPreferences.getInstance();
-    // DATABASE WRITE
-    var now = DateTime.now().millisecondsSinceEpoch.toString();
     Firestore.instance
         .collection('users')
         .document(myId)

@@ -2,28 +2,14 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flashmsg/const.dart';
-import 'package:flashmsg/main.dart';
+import 'package:flashmsg/config/const.dart';
+import 'package:flashmsg/view/home.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_auth_buttons/flutter_auth_buttons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'FlashMsg',
-      home: LoginScreen(),
-      theme: ThemeData(
-        primaryColor: themeColor,
-      ),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
 
 class LoginScreen extends StatefulWidget {
   LoginScreen({Key key}) : super(key: key);
@@ -48,33 +34,25 @@ class LoginScreenState extends State<LoginScreen> {
   }
 
   void isSignedIn() async {
-    this.setState(() {
-      isLoading = true;
-    });
+    this.setState(() => isLoading = true);
 
     prefs = await SharedPreferences.getInstance();
 
     isLoggedIn = await googleSignIn.isSignedIn();
     if (isLoggedIn) {
-      Navigator.push(
-        context,
-        CupertinoPageRoute(
-            builder: (context) =>
-                MainScreen(currentUserId: prefs.getString('id'))),
-      );
+      Navigator.of(context).pushAndRemoveUntil(
+          CupertinoPageRoute(
+              builder: (context) => HomeScreen(myId: prefs.getString('id'))),
+          (Route<dynamic> route) => false);
     }
 
-    this.setState(() {
-      isLoading = false;
-    });
+    this.setState(() => isLoading = false);
   }
 
   Future<Null> handleSignIn() async {
     prefs = await SharedPreferences.getInstance();
 
-    this.setState(() {
-      isLoading = true;
-    });
+    this.setState(() => isLoading = true);
 
     GoogleSignInAccount googleUser = await googleSignIn.signIn();
     GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -120,22 +98,15 @@ class LoginScreenState extends State<LoginScreen> {
       print("pref already set: " + prefs.getString('id'));
       Fluttertoast.showToast(
           msg: "Welcome, " + prefs.getString('nickname') + "!");
-      this.setState(() {
-        isLoading = false;
-      });
+      this.setState(() => isLoading = false);
 
-      Navigator.push(
-        context,
-        CupertinoPageRoute(
-            builder: (context) => MainScreen(
-                  currentUserId: firebaseUser.uid,
-                )),
-      );
+      Navigator.of(context).pushAndRemoveUntil(
+          CupertinoPageRoute(
+              builder: (context) => HomeScreen(myId: firebaseUser.uid)),
+              (Route<dynamic> route) => false);
     } else {
       Fluttertoast.showToast(msg: "Sign in fail");
-      this.setState(() {
-        isLoading = false;
-      });
+      this.setState(() => isLoading = false);
     }
   }
 

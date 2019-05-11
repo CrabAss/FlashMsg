@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flashmsg/const.dart';
+import 'package:flashmsg/config/const.dart';
 import 'package:flashmsg/db/friend/bloc.dart';
-import 'package:flashmsg/photo_view.dart';
+import 'package:flashmsg/view/photo_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -269,7 +269,7 @@ class ChatScreenState extends State<ChatScreen> {
                       onTap: () => Navigator.push(
                           context,
                           PageTransition(
-                              child: PhotoViewPage(photoUrl: document['content']),
+                              child: PhotoViewScreen(photoUrl: document['content']),
                               type: PageTransitionType.fade
                           )
                       ),
@@ -394,7 +394,7 @@ class ChatScreenState extends State<ChatScreen> {
                             onTap: () => Navigator.push(
                                 context,
                                 PageTransition(
-                                    child: PhotoViewPage(photoUrl: document['content']),
+                                    child: PhotoViewScreen(photoUrl: document['content']),
                                     type: PageTransitionType.fade
                                 )
                             ),                          ),
@@ -451,32 +451,18 @@ class ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<bool> onBackPress() {
-    Navigator.pop(context);
-    return Future.value(false);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      child: Stack(
-        children: <Widget>[
-          Column(
-            children: <Widget>[
-              // List of messages
-              buildListMessage(),
-              Container(),
-
-              // Input content
-              buildInput(),
-            ],
-          ),
-
-          // Loading
-          buildLoading()
-        ],
-      ),
-      onWillPop: onBackPress,
+    return Stack(
+      children: <Widget>[
+        Column(
+          children: <Widget>[
+            buildListMessage(),
+            buildInput(),
+          ],
+        ),
+        buildLoading()
+      ],
     );
   }
 
