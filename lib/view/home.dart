@@ -32,7 +32,7 @@ class HomeScreenState extends State<HomeScreen> {
   final FriendBloc friendBloc = FriendBloc();
 
   FCMController fcmController;
-  DateTime currentBackPressTime = DateTime.now();
+  DateTime currentBackPressTime = DateTime.now().subtract(doubleTapInterval);
 
   bool isLoading = false;
   bool isSigningOut = false;
@@ -59,12 +59,12 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<bool> onBackPress() {
     DateTime now = DateTime.now();
-    if (now.difference(currentBackPressTime) > Duration(seconds: 2)) {
+    if (now.difference(currentBackPressTime) >= doubleTapInterval) {
       currentBackPressTime = now;
       Fluttertoast.showToast(msg: "Tap \"Back\" again to quit...");
       return Future.value(false);
     }
-    return Future.value(true);
+    else return Future.value(true);
   }
 
   Widget buildItem(BuildContext context, Friend document) {

@@ -11,3 +11,5 @@ final greyColor2 = Color(0xffE8E8E8);
 final String appName = "FlashMsg";
 final String uriPrefix = "flashmsg://user/";
 final String newFriendMsg = "Say \"Hi\" to your new friend!";
+
+final Duration doubleTapInterval = new Duration(seconds: 2);
