@@ -4,40 +4,37 @@ import 'package:barcode_scan/barcode_scan.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flashmsg/config/const.dart';
+import 'package:flashmsg/state/account.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AddFriendScreen extends StatefulWidget {
-  final String myId;
 
-  const AddFriendScreen({Key key, this.myId}) : super(key: key);
+  const AddFriendScreen({Key key}) : super(key: key);
 
   @override
-  AddFriendScreenState createState() => AddFriendScreenState(myIdURI: uriPrefix + myId, myId: myId);
+  AddFriendScreenState createState() => AddFriendScreenState();
 }
 
 class AddFriendScreenState extends State<AddFriendScreen> {
   String barcode = "";
   SharedPreferences prefs;
+  MyAccount myAccount;
 
   GlobalKey globalKey = GlobalKey();
-  String myIdURI;
-  String myId;
 
   bool isLoading = false;
 
-  AddFriendScreenState({Key key, @required this.myIdURI, @required this.myId});
+  AddFriendScreenState({Key key});
 
-  Future<AsyncSnapshot> getMyData() async {
-    prefs = await SharedPreferences.getInstance();
-    Map result = Map();
-    result['nickname'] = prefs.getString('nickname') ?? '';
-    result['aboutMe'] = prefs.getString('aboutMe') ?? '';
-    result['photoUrl'] = prefs.getString('photoUrl') ?? '';
-    return AsyncSnapshot.withData(ConnectionState.done, result);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    myAccount = Provider.of<MyAccount>(context);
   }
 
   @override
@@ -74,7 +71,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                                 RepaintBoundary(
                                   key: globalKey,
                                   child: QrImage(
-                                    data: myIdURI,
+                                    data: userURIPrefix + myAccount.id,
                                     size: 300,
                                     onError: (ex) {
                                       print("[QR] ERROR - $ex");
@@ -88,23 +85,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                                 Container(
                                   width: 300,
                                   padding: EdgeInsets.all(8),
-                                  child: FutureBuilder<AsyncSnapshot>(
-                                    future: getMyData(),
-                                    builder: (BuildContext context,
-                                        AsyncSnapshot snapshot) {
-                                      if (!snapshot.hasData) {
-                                        return Center(
-                                          child: CircularProgressIndicator(
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                    themeColor),
-                                          ),
-                                        );
-                                      } else {
-                                        return mePreview(snapshot.data.data);
-                                      }
-                                    },
-                                  ),
+                                  child: mePreview(),
                                 )
                               ],
                             ),
@@ -248,7 +229,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
     );
   }
 
-  Widget mePreview(Map document) {
+  Widget mePreview() {
     return Row(
       children: <Widget>[
         Material(
@@ -262,7 +243,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                   height: 50.0,
                   padding: EdgeInsets.all(15.0),
                 ),
-            imageUrl: document['photoUrl'],
+            imageUrl: myAccount.photoUrl,
             width: 50.0,
             height: 50.0,
             fit: BoxFit.cover,
@@ -275,8 +256,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
             child: Column(
               children: <Widget>[
                 Container(
-                  child: Text(
-                    '${document['nickname']}',
+                  child: Text(myAccount.nickname,
                     style: TextStyle(
                         color: Colors.black,
                         fontSize: 18,
@@ -287,15 +267,14 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                 ),
                 Visibility(
                   child: Container(
-                    child: Text(
-                      '${document['aboutMe']}',
+                    child: Text(myAccount.aboutMe,
                       style: TextStyle(
                           color: Colors.black54, fontWeight: FontWeight.w400),
                     ),
                     alignment: Alignment.centerLeft,
                     margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
                   ),
-                  visible: document['aboutMe'] == "" ? false : true,
+                  visible: myAccount.aboutMe == "" ? false : true,
                 )
               ],
             ),
@@ -349,11 +328,11 @@ class AddFriendScreenState extends State<AddFriendScreen> {
 
   void findFriend(String userURI) async {
     String userId;
-    if (userURI.startsWith(uriPrefix)) {
-      userId = userURI.substring(uriPrefix.length);
+    if (userURI.startsWith(userURIPrefix)) {
+      userId = userURI.substring(userURIPrefix.length);
       QuerySnapshot result = await Firestore.instance
           .collection('users')
-          .document(myId)
+          .document(myAccount.id)
           .collection('friends')
           .where('id', isEqualTo: userId)
           .getDocuments();
@@ -393,7 +372,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
     prefs = await SharedPreferences.getInstance();
     Firestore.instance
         .collection('users')
-        .document(myId)
+        .document(myAccount.id)
         .collection('friends')
         .document(document['id'])
         .setData({
@@ -403,9 +382,9 @@ class AddFriendScreenState extends State<AddFriendScreen> {
         .collection('users')
         .document(document['id'])
         .collection('friends')
-        .document(myId)
+        .document(myAccount.id)
         .setData({
-      'id': myId,
+      'id': myAccount.id,
     });
     setState(() {
       isLoading = false;

@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flashmsg/config/const.dart';
 import 'package:flashmsg/db/friend/bloc.dart';
+import 'package:flashmsg/state/account.dart';
 import 'package:flashmsg/view/photo_view.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -14,84 +15,58 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:page_transition/page_transition.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'package:vibration/vibration.dart';
 
 class Chat extends StatelessWidget {
-  final String peerId;
-  final String peerNickname;
-  final String peerAvatar;
-  final FriendBloc friendBloc;
 
-  Chat(
-      {Key key,
-      @required this.peerId,
-      @required this.peerNickname,
-      @required this.peerAvatar,
-      @required this.friendBloc})
-      : super(key: key);
+  Chat({Key key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    PeerAccount peerAccount = Provider.of<PeerAccount>(context);
     return new Scaffold(
       appBar: new AppBar(
         title: new Text(
-          peerNickname,
+          peerAccount.nickname,
           style: TextStyle(color: whiteColor),
         ),
       ),
-      body: new ChatScreen(
-        peerId: peerId,
-        peerAvatar: peerAvatar,
-        friendBloc: friendBloc,
-      ),
+      body: new ChatScreen(),
     );
   }
 }
 
 class ChatScreen extends StatefulWidget {
-  final String peerId;
-  final String peerAvatar;
-  final FriendBloc friendBloc;
 
-  ChatScreen(
-      {Key key,
-      @required this.peerId,
-      @required this.peerAvatar,
-      @required this.friendBloc})
-      : super(key: key);
+  ChatScreen({Key key}) : super(key: key);
 
   @override
-  State createState() => new ChatScreenState(
-      peerId: peerId, peerAvatar: peerAvatar, friendBloc: friendBloc);
+  State createState() => new ChatScreenState();
 }
 
 class ChatScreenState extends State<ChatScreen> {
-  ChatScreenState(
-      {Key key,
-      @required this.peerId,
-      @required this.peerAvatar,
-      @required this.friendBloc});
+  ChatScreenState({Key key});
 
-  String peerId;
-  String peerAvatar;
-  String id;
+  PeerAccount peerAccount;
+  MyAccount myAccount;
+  FriendBloc friendBloc;
 
-  var listMessage;
+  List<DocumentSnapshot> listMessage;
   String groupChatId;
-  SharedPreferences prefs;
 
   File imageFile;
   bool isLoading;
+
   String imageUrl;
 
-  final FriendBloc friendBloc;
-
-/*  @override
+/*
+  @override
   void dispose() {
     friendBloc.dispose();
     super.dispose();
-  }*/
+  }
+*/
 
   final TextEditingController textEditingController =
       new TextEditingController();
@@ -101,25 +76,23 @@ class ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-
-    groupChatId = '';
-
     isLoading = false;
     imageUrl = '';
-
-    readLocal();
   }
 
-  readLocal() async {
-    prefs = await SharedPreferences.getInstance();
-    id = prefs.getString('id') ?? '';
-    if (id.hashCode <= peerId.hashCode) {
-      groupChatId = '$id-$peerId';
-    } else {
-      groupChatId = '$peerId-$id';
-    }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
-    setState(() {});
+    peerAccount = Provider.of<PeerAccount>(context);
+    myAccount = Provider.of<MyAccount>(context);
+    friendBloc = Provider.of<FriendBloc>(context);
+
+    if (myAccount.id.hashCode <= peerAccount.id.hashCode) {
+      groupChatId = '${myAccount.id}-${peerAccount.id}';
+    } else {
+      groupChatId = '${peerAccount.id}-${myAccount.id}';
+    }
   }
 
   Future getImage() async {
@@ -168,15 +141,15 @@ class ChatScreenState extends State<ChatScreen> {
         await transaction.set(
           documentReference,
           {
-            'idFrom': id,
-            'idTo': peerId,
+            'idFrom': myAccount.id,
+            'idTo': peerAccount.id,
             'timestamp': now,
             'content': content,
             'type': type
           },
         );
       });
-      friendBloc.updateFriend(peerId, now, type == 1 ? "[Image]" : content);
+      friendBloc.updateFriend(peerAccount.id, now, type == 1 ? "[Image]" : content);
       listScrollController.animateTo(0.0,
           duration: Duration(milliseconds: 300), curve: Curves.easeOut);
     } else {
@@ -186,7 +159,7 @@ class ChatScreenState extends State<ChatScreen> {
 
   Widget buildItem(int index, DocumentSnapshot document) {
     final double MAX_WIDTH = MediaQuery.of(context).size.width - 70.0;
-    if (document['idFrom'] == id) {
+    if (document['idFrom'] == myAccount.id) {
       // Right (my message)
       final radius = BorderRadius.only(
           topLeft: Radius.circular(15.0),
@@ -313,7 +286,7 @@ class ChatScreenState extends State<ChatScreen> {
                                 height: 35.0,
                                 padding: EdgeInsets.all(10.0),
                               ),
-                          imageUrl: peerAvatar,
+                          imageUrl: peerAccount.photoUrl,
                           width: 35.0,
                           height: 35.0,
                           fit: BoxFit.cover,
@@ -432,7 +405,7 @@ class ChatScreenState extends State<ChatScreen> {
   bool isLastMessageLeft(int index) {
     if ((index > 0 &&
             listMessage != null &&
-            listMessage[index - 1]['idFrom'] == id) ||
+            listMessage[index - 1]['idFrom'] == myAccount.id) ||
         index == 0) {
       return true;
     } else {
@@ -443,7 +416,7 @@ class ChatScreenState extends State<ChatScreen> {
   bool isLastMessageRight(int index) {
     if ((index > 0 &&
             listMessage != null &&
-            listMessage[index - 1]['idFrom'] != id) ||
+            listMessage[index - 1]['idFrom'] != myAccount.id) ||
         index == 0) {
       return true;
     } else {

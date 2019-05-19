@@ -6,6 +6,7 @@ import 'package:flashmsg/config/const.dart';
 import 'package:flashmsg/controller/fcm.dart';
 import 'package:flashmsg/db/friend/bloc.dart';
 import 'package:flashmsg/db/friend/model.dart';
+import 'package:flashmsg/state/account.dart';
 import 'package:flashmsg/view/add_friend.dart';
 import 'package:flashmsg/view/chat.dart';
 import 'package:flashmsg/view/login.dart';
@@ -15,20 +16,19 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String myId;
-
-  HomeScreen({Key key, @required this.myId}) : super(key: key);
+  HomeScreen({Key key}) : super(key: key);
 
   @override
-  State createState() => HomeScreenState(myId: myId);
+  State createState() => HomeScreenState();
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  HomeScreenState({Key key, @required this.myId});
+  HomeScreenState({Key key});
 
-  final String myId;
+  MyAccount myAccount;
   final FriendBloc friendBloc = FriendBloc();
 
   FCMController fcmController;
@@ -43,9 +43,12 @@ class HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    fcmController = FCMController(myId, friendBloc);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    myAccount = Provider.of<MyAccount>(context);
+    fcmController = FCMController(myAccount.id, friendBloc);
+
     setState(() {
       friendBloc.batchUpdateFriends();
     });
@@ -61,14 +64,14 @@ class HomeScreenState extends State<HomeScreen> {
     DateTime now = DateTime.now();
     if (now.difference(currentBackPressTime) >= doubleTapInterval) {
       currentBackPressTime = now;
-      Fluttertoast.showToast(msg: "Tap \"Back\" again to quit...");
+      Fluttertoast.showToast(msg: doubleTapToQuitMsg);
       return Future.value(false);
-    }
-    else return Future.value(true);
+    } else
+      return Future.value(true);
   }
 
   Widget buildItem(BuildContext context, Friend document) {
-    if (document.id == myId) {
+    if (document.id == myAccount.id) {
       return Container();
     } else {
       return Container(
@@ -132,8 +135,8 @@ class HomeScreenState extends State<HomeScreen> {
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                           style: TextStyle(
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w400,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         alignment: Alignment.centerLeft,
@@ -150,16 +153,20 @@ class HomeScreenState extends State<HomeScreen> {
             Navigator.push(
                 context,
                 CupertinoPageRoute(
-                    builder: (context) => Chat(
-                          peerId: document.id,
-                          peerNickname: document.nickname ?? "Unknown",
-                          peerAvatar: document.photoUrl,
-                          friendBloc: friendBloc,
-                        )));
+                    builder: (context) => MultiProvider(
+                            providers: [
+                              ChangeNotifierProvider(
+                                  builder: (_) => PeerAccount(
+                                        id: document.id,
+                                        nickname: document.nickname ?? "Unknown",
+                                        photoUrl: document.photoUrl,
+                                        aboutMe: document.aboutMe,
+                                      )),
+                              Provider<FriendBloc>.value(value: friendBloc),
+                            ],
+                            child: Chat())));
           },
-//          color: greyColor2,
           padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
-//          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
       );
     }
@@ -215,7 +222,7 @@ class HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 CupertinoPageRoute(
-                    builder: (context) => AddFriendScreen(myId: myId)),
+                    builder: (context) => AddFriendScreen()),
               );
             },
           ),

@@ -8,8 +8,10 @@ final whiteColor = Colors.white;
 final greyColor = Color(0xffaeaeae);
 final greyColor2 = Color(0xffE8E8E8);
 
-final String appName = "FlashMsg";
-final String uriPrefix = "flashmsg://user/";
-final String newFriendMsg = "Say \"Hi\" to your new friend!";
-
 final Duration doubleTapInterval = new Duration(seconds: 2);
+
+final String appName = "FlashMsg";
+final String userURIPrefix = "flashmsg://user/";
+
+final String newFriendMsg = "Say \"Hi\" to your new friend!";
+final String doubleTapToQuitMsg = "Tap \"Back\" again to quit...";

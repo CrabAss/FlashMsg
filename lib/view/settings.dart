@@ -5,9 +5,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flashmsg/config/const.dart';
+import 'package:flashmsg/state/account.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Settings extends StatelessWidget {
@@ -35,11 +37,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   TextEditingController controllerAboutMe;
 
   SharedPreferences prefs;
-
-  String id = '';
-  String nickname = '';
-  String aboutMe = '';
-  String photoUrl = '';
+  MyAccount myAccount;
 
   bool isLoading = false;
   File avatarImageFile;
@@ -50,21 +48,15 @@ class SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    readLocal();
+    SharedPreferences.getInstance().then((SharedPreferences value) => prefs = value);
   }
 
-  void readLocal() async {
-    prefs = await SharedPreferences.getInstance();
-    id = prefs.getString('id') ?? '';
-    nickname = prefs.getString('nickname') ?? '';
-    aboutMe = prefs.getString('aboutMe') ?? '';
-    photoUrl = prefs.getString('photoUrl') ?? '';
-
-    controllerNickname = new TextEditingController(text: nickname);
-    controllerAboutMe = new TextEditingController(text: aboutMe);
-
-    // Force refresh input
-    setState(() {});
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    myAccount = Provider.of<MyAccount>(context);
+    controllerNickname = TextEditingController(text: myAccount.nickname);
+    controllerAboutMe = TextEditingController(text: myAccount.aboutMe);
   }
 
   Future getImage() async {
@@ -80,7 +72,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future uploadFile() async {
-    String fileName = id;
+    String fileName = myAccount.id;
     StorageReference reference = FirebaseStorage.instance.ref().child(fileName);
     StorageUploadTask uploadTask = reference.putFile(avatarImageFile);
     StorageTaskSnapshot storageTaskSnapshot;
@@ -88,241 +80,211 @@ class SettingsScreenState extends State<SettingsScreen> {
       if (value.error == null) {
         storageTaskSnapshot = value;
         storageTaskSnapshot.ref.getDownloadURL().then((downloadUrl) {
-          photoUrl = downloadUrl;
-          Firestore.instance.collection('users').document(id).updateData({
-            'nickname': nickname,
-            'aboutMe': aboutMe,
-            'photoUrl': photoUrl
+          myAccount.update(photoUrl: downloadUrl);
+          Firestore.instance.collection('users').document(myAccount.id).updateData({
+            'nickname': myAccount.nickname,
+            'aboutMe': myAccount.aboutMe,
+            'photoUrl': myAccount.photoUrl
           }).then((data) async {
-            await prefs.setString('photoUrl', photoUrl);
-            setState(() {
-              isLoading = false;
-            });
+            await prefs.setString('photoUrl', myAccount.photoUrl);
+            setState(() => isLoading = false);
             Fluttertoast.showToast(msg: "Upload success");
           }).catchError((err) {
-            setState(() {
-              isLoading = false;
-            });
+            setState(() => isLoading = false);
             Fluttertoast.showToast(msg: err.toString());
           });
         }, onError: (err) {
-          setState(() {
-            isLoading = false;
-          });
+          setState(() => isLoading = false);
           Fluttertoast.showToast(msg: 'This file is not an image');
         });
       } else {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
         Fluttertoast.showToast(msg: 'This file is not an image');
       }
     }, onError: (err) {
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
       Fluttertoast.showToast(msg: err.toString());
     });
   }
 
-  void handleUpdateData() {
+  Future<bool> handleUpdateData() async {
     focusNodeNickname.unfocus();
     focusNodeAboutMe.unfocus();
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
-    Firestore.instance.collection('users').document(id).updateData({
-      'nickname': nickname,
-      'aboutMe': aboutMe,
-      'photoUrl': photoUrl
-    }).then((data) async {
-      await prefs.setString('nickname', nickname);
-      await prefs.setString('aboutMe', aboutMe);
-      await prefs.setString('photoUrl', photoUrl);
-
-      setState(() {
-        isLoading = false;
+    try {
+      await Firestore.instance.collection('users').document(myAccount.id).updateData({
+        'nickname': myAccount.nickname,
+        'aboutMe': myAccount.aboutMe,
+        'photoUrl': myAccount.photoUrl
       });
+      await prefs.setString('nickname', myAccount.nickname);
+      await prefs.setString('aboutMe', myAccount.aboutMe);
+      await prefs.setString('photoUrl', myAccount.photoUrl);
 
+      setState(() => isLoading = false);
       Fluttertoast.showToast(msg: "Update success");
-    }).catchError((err) {
-      setState(() {
-        isLoading = false;
-      });
-
+      return Future.value(true);
+    } catch (err) {
+      setState(() => isLoading = false);
       Fluttertoast.showToast(msg: err.toString());
-    });
+      return Future.value(false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        Container(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: <Widget>[
-                      // Avatar
-                      Container(
-                        child: Center(
-                          child: Stack(
-                            children: <Widget>[
-                              (avatarImageFile == null)
-                                  ? (photoUrl != ''
-                                      ? Material(
-                                          child: CachedNetworkImage(
-                                            placeholder: (context, url) =>
-                                                Container(
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 2.0,
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation<
-                                                            Color>(themeColor),
+    return WillPopScope(
+      child: Stack(
+        children: <Widget>[
+          Container(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: <Widget>[
+                        // Avatar
+                        Container(
+                          child: Center(
+                            child: Stack(
+                              children: <Widget>[
+                                (avatarImageFile == null)
+                                    ? (myAccount.photoUrl != ''
+                                        ? Material(
+                                            child: CachedNetworkImage(
+                                              placeholder: (context, url) =>
+                                                  Container(
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2.0,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                              Color>(themeColor),
+                                                    ),
+                                                    width: 90.0,
+                                                    height: 90.0,
+                                                    padding: EdgeInsets.all(20.0),
                                                   ),
-                                                  width: 90.0,
-                                                  height: 90.0,
-                                                  padding: EdgeInsets.all(20.0),
-                                                ),
-                                            imageUrl: photoUrl,
-                                            width: 90.0,
-                                            height: 90.0,
-                                            fit: BoxFit.cover,
-                                          ),
-                                          borderRadius: BorderRadius.all(
-                                              Radius.circular(45.0)),
-                                          clipBehavior: Clip.hardEdge,
-                                        )
-                                      : Icon(
-                                          Icons.account_circle,
-                                          size: 90.0,
-                                          color: greyColor,
-                                        ))
-                                  : Material(
-                                      child: Image.file(
-                                        avatarImageFile,
-                                        width: 90.0,
-                                        height: 90.0,
-                                        fit: BoxFit.cover,
+                                              imageUrl: myAccount.photoUrl,
+                                              width: 90.0,
+                                              height: 90.0,
+                                              fit: BoxFit.cover,
+                                            ),
+                                            borderRadius: BorderRadius.all(
+                                                Radius.circular(45.0)),
+                                            clipBehavior: Clip.hardEdge,
+                                          )
+                                        : Icon(
+                                            Icons.account_circle,
+                                            size: 90.0,
+                                            color: greyColor,
+                                          ))
+                                    : Material(
+                                        child: Image.file(
+                                          avatarImageFile,
+                                          width: 90.0,
+                                          height: 90.0,
+                                          fit: BoxFit.cover,
+                                        ),
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(45.0)),
+                                        clipBehavior: Clip.hardEdge,
                                       ),
-                                      borderRadius: BorderRadius.all(
-                                          Radius.circular(45.0)),
-                                      clipBehavior: Clip.hardEdge,
-                                    ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.camera_alt,
-                                  color: primaryColor.withOpacity(0.5),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.camera_alt,
+                                    color: primaryColor.withOpacity(0.5),
+                                  ),
+                                  onPressed: getImage,
+                                  padding: EdgeInsets.all(30.0),
+                                  splashColor: Colors.transparent,
+                                  highlightColor: greyColor,
+                                  iconSize: 30.0,
                                 ),
-                                onPressed: getImage,
-                                padding: EdgeInsets.all(30.0),
-                                splashColor: Colors.transparent,
-                                highlightColor: greyColor,
-                                iconSize: 30.0,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          width: double.infinity,
+                          margin: EdgeInsets.symmetric(vertical: 32.0),
                         ),
-                        width: double.infinity,
-                        margin: EdgeInsets.symmetric(vertical: 32.0),
-                      ),
 
-                      // Input
-                      Column(
-                        children: <Widget>[
-                          // Username
-                          Container(
-                            child: Theme(
-                              data: Theme.of(context)
-                                  .copyWith(primaryColor: primaryColor),
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  labelText: 'Nickname',
-                                  hintText: 'Sweetie',
-                                  contentPadding: new EdgeInsets.all(5.0),
-                                  hintStyle: TextStyle(color: greyColor),
+                        // Input
+                        Column(
+                          children: <Widget>[
+                            // Username
+                            Container(
+                              child: Theme(
+                                data: Theme.of(context)
+                                    .copyWith(primaryColor: primaryColor),
+                                child: TextField(
+                                  decoration: InputDecoration(
+                                    labelText: 'Nickname',
+                                    hintText: 'Sweetie',
+                                    contentPadding: new EdgeInsets.all(5.0),
+                                    hintStyle: TextStyle(color: greyColor),
+                                  ),
+                                  controller: controllerNickname,
+                                  onChanged: (value) {
+                                    myAccount.update(nickname: value);
+                                  },
+                                  focusNode: focusNodeNickname,
                                 ),
-                                controller: controllerNickname,
-                                onChanged: (value) {
-                                  nickname = value;
-                                },
-                                focusNode: focusNodeNickname,
                               ),
+                              margin: EdgeInsets.symmetric(
+                                  vertical: 10.0, horizontal: 30.0),
                             ),
-                            margin: EdgeInsets.symmetric(
-                                vertical: 10.0, horizontal: 30.0),
-                          ),
 
-                          // About me
-                          Container(
-                            child: Theme(
-                              data: Theme.of(context)
-                                  .copyWith(primaryColor: primaryColor),
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  labelText: 'Status',
-                                  hintText: 'Fun, like travel and play PES...',
-                                  contentPadding: EdgeInsets.all(5.0),
-                                  hintStyle: TextStyle(color: greyColor),
+                            // About me
+                            Container(
+                              child: Theme(
+                                data: Theme.of(context)
+                                    .copyWith(primaryColor: primaryColor),
+                                child: TextField(
+                                  decoration: InputDecoration(
+                                    labelText: 'Status',
+                                    hintText: 'Fun, like travel and play PES...',
+                                    contentPadding: EdgeInsets.all(5.0),
+                                    hintStyle: TextStyle(color: greyColor),
+                                  ),
+                                  controller: controllerAboutMe,
+                                  onChanged: (value) {
+                                    myAccount.update(aboutMe: value);
+                                  },
+                                  focusNode: focusNodeAboutMe,
                                 ),
-                                controller: controllerAboutMe,
-                                onChanged: (value) {
-                                  aboutMe = value;
-                                },
-                                focusNode: focusNodeAboutMe,
                               ),
+                              margin: EdgeInsets.symmetric(
+                                  vertical: 10.0, horizontal: 30.0),
                             ),
-                            margin: EdgeInsets.symmetric(
-                                vertical: 10.0, horizontal: 30.0),
-                          ),
-                        ],
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                      ),
-                    ],
+                          ],
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-
-              // Button
-              Container(
-                child: RaisedButton(
-                  onPressed: handleUpdateData,
-                  child: Text(
-                    'UPDATE',
-                    style: TextStyle(fontSize: 16.0),
-                  ),
-                  color: themeColor,
-                  textColor: Colors.white,
-                  splashColor: themeColor.shade200,
-                  padding: EdgeInsets.fromLTRB(30.0, 10.0, 30.0, 10.0),
-                ),
-                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-            ],
+              ],
+            ),
           ),
-//          padding: EdgeInsets.only(left: 15.0, right: 15.0),
-        ),
 
-        // Loading
-        Positioned(
-          child: isLoading
-              ? Container(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
-                  ),
-                  color: Colors.white.withOpacity(0.8),
-                )
-              : Container(),
-        ),
-      ],
+          // Loading
+          Positioned(
+            child: isLoading
+                ? Container(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
+                    ),
+                    color: Colors.white.withOpacity(0.8),
+                  )
+                : Container(),
+          ),
+        ],
+      ), onWillPop: handleUpdateData,
     );
   }
 }

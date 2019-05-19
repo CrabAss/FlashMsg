@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flashmsg/config/const.dart';
+import 'package:flashmsg/state/account.dart';
 import 'package:flashmsg/view/home.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_auth_buttons/flutter_auth_buttons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -30,19 +32,29 @@ class LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    SharedPreferences.getInstance().then((SharedPreferences value) => prefs = value);
     isSignedIn();
+  }
+
+  void initAccountState() {
+    final MyAccount myAccount = Provider.of<MyAccount>(context);
+    myAccount.update(
+      id: prefs.getString('id'),
+      nickname: prefs.getString('nickname'),
+      aboutMe: prefs.getString('aboutMe'),
+      photoUrl: prefs.getString('photoUrl'),
+    );
   }
 
   void isSignedIn() async {
     this.setState(() => isLoading = true);
 
-    prefs = await SharedPreferences.getInstance();
-
     isLoggedIn = await googleSignIn.isSignedIn();
     if (isLoggedIn) {
+      initAccountState();
       Navigator.of(context).pushAndRemoveUntil(
           CupertinoPageRoute(
-              builder: (context) => HomeScreen(myId: prefs.getString('id'))),
+              builder: (context) => HomeScreen()),
           (Route<dynamic> route) => false);
     }
 
@@ -50,13 +62,15 @@ class LoginScreenState extends State<LoginScreen> {
   }
 
   Future<Null> handleSignIn() async {
-    prefs = await SharedPreferences.getInstance();
-
     this.setState(() => isLoading = true);
 
     GoogleSignInAccount googleUser = await googleSignIn.signIn();
-    GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    if (googleUser == null) {
+      this.setState(() => isLoading = false);
+      return;
+    }
 
+    GoogleSignInAuthentication googleAuth = await googleUser.authentication;
     final AuthCredential credential = GoogleAuthProvider.getCredential(
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
@@ -97,15 +111,16 @@ class LoginScreenState extends State<LoginScreen> {
       }
       print("pref already set: " + prefs.getString('id'));
       Fluttertoast.showToast(
-          msg: "Welcome, " + prefs.getString('nickname') + "!");
+          msg: "Welcome, ${prefs.getString('nickname')}!");
+      initAccountState();
       this.setState(() => isLoading = false);
 
       Navigator.of(context).pushAndRemoveUntil(
           CupertinoPageRoute(
-              builder: (context) => HomeScreen(myId: firebaseUser.uid)),
+              builder: (context) => HomeScreen()),
               (Route<dynamic> route) => false);
     } else {
-      Fluttertoast.showToast(msg: "Sign in fail");
+      Fluttertoast.showToast(msg: "Sign in failed");
       this.setState(() => isLoading = false);
     }
   }
