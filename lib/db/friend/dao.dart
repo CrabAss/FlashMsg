@@ -101,7 +101,7 @@ class FriendDAO {
         lastMsgDate: lastMsgDate,
         lastMsg: lastMsg);
 
-    var raw = await db.rawInsert(
+    await db.rawInsert(
         "INSERT Into Friend (id,nickname,aboutMe,photoUrl,last_msg_date,last_msg)"
         " VALUES (?,?,?,?,?,?)",
         [

@@ -25,7 +25,7 @@ class Friend {
     this.lastMsg,
   });
 
-  factory Friend.fromJson(Map<String, dynamic> json) => new Friend(
+  factory Friend.fromJson(Map<String, dynamic> json) => Friend(
     id: json["id"],
     nickname: json["nickname"],
     aboutMe: json["aboutMe"],

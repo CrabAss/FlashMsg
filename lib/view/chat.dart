@@ -25,14 +25,11 @@ class Chat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     PeerAccount peerAccount = Provider.of<PeerAccount>(context);
-    return new Scaffold(
-      appBar: new AppBar(
-        title: new Text(
-          peerAccount.nickname,
-          style: TextStyle(color: whiteColor),
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(peerAccount.nickname),
       ),
-      body: new ChatScreen(),
+      body: ChatScreen(),
     );
   }
 }
@@ -42,7 +39,7 @@ class ChatScreen extends StatefulWidget {
   ChatScreen({Key key}) : super(key: key);
 
   @override
-  State createState() => new ChatScreenState();
+  State createState() => ChatScreenState();
 }
 
 class ChatScreenState extends State<ChatScreen> {
@@ -58,26 +55,14 @@ class ChatScreenState extends State<ChatScreen> {
   File imageFile;
   bool isLoading;
 
-  String imageUrl;
-
-/*
-  @override
-  void dispose() {
-    friendBloc.dispose();
-    super.dispose();
-  }
-*/
-
-  final TextEditingController textEditingController =
-      new TextEditingController();
-  final ScrollController listScrollController = new ScrollController();
-  final FocusNode focusNode = new FocusNode();
+  final TextEditingController textEditingController = TextEditingController();
+  final ScrollController listScrollController = ScrollController();
+  final FocusNode focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     isLoading = false;
-    imageUrl = '';
   }
 
   @override
@@ -99,9 +84,7 @@ class ChatScreenState extends State<ChatScreen> {
     imageFile = await ImagePicker.pickImage(source: ImageSource.gallery);
 
     if (imageFile != null) {
-      setState(() {
-        isLoading = true;
-      });
+      setState(() => isLoading = true);
       uploadFile();
     }
   }
@@ -111,22 +94,19 @@ class ChatScreenState extends State<ChatScreen> {
     StorageReference reference = FirebaseStorage.instance.ref().child(fileName);
     StorageUploadTask uploadTask = reference.putFile(imageFile);
     StorageTaskSnapshot storageTaskSnapshot = await uploadTask.onComplete;
-    storageTaskSnapshot.ref.getDownloadURL().then((downloadUrl) {
-      imageUrl = downloadUrl;
+    try {
+      String downloadUrl = await storageTaskSnapshot.ref.getDownloadURL();
       setState(() {
         isLoading = false;
-        onSendMessage(imageUrl, 1);
+        onSendMessage(downloadUrl, MessageType.image);
       });
-    }, onError: (err) {
-      setState(() {
-        isLoading = false;
-      });
-      Fluttertoast.showToast(msg: 'This file is not an image');
-    });
+    } catch (err) {
+      setState(() => isLoading = false);
+      Fluttertoast.showToast(msg: 'Not an image');
+    }
   }
 
   void onSendMessage(String content, int type) {
-    // type: 0 = text, 1 = image
     if (content.trim() != '') {
       textEditingController.clear();
       String now = DateTime.now().millisecondsSinceEpoch.toString();
@@ -149,7 +129,7 @@ class ChatScreenState extends State<ChatScreen> {
           },
         );
       });
-      friendBloc.updateFriend(peerAccount.id, now, type == 1 ? "[Image]" : content);
+      friendBloc.updateFriend(peerAccount.id, now, type == MessageType.image ? "[Image]" : content);
       listScrollController.animateTo(0.0,
           duration: Duration(milliseconds: 300), curve: Curves.easeOut);
     } else {
@@ -170,7 +150,7 @@ class ChatScreenState extends State<ChatScreen> {
               : Radius.circular(15.0));
       return Row(
         children: <Widget>[
-          document['type'] == 0
+          document['type'] == MessageType.text
               // Text
               ? Flexible(
                   child: GestureDetector(
@@ -297,7 +277,7 @@ class ChatScreenState extends State<ChatScreen> {
                         clipBehavior: Clip.hardEdge,
                       )
                     : Container(width: 35.0),
-                document['type'] == 0
+                document['type'] == MessageType.text
                     ? Flexible(
                         child: GestureDetector(
                         child: Container(
@@ -416,7 +396,7 @@ class ChatScreenState extends State<ChatScreen> {
   bool isLastMessageRight(int index) {
     if ((index > 0 &&
             listMessage != null &&
-            listMessage[index - 1]['idFrom'] != myAccount.id) ||
+            listMessage[index - 1]['idFrom'] == peerAccount.id) ||
         index == 0) {
       return true;
     } else {
@@ -434,22 +414,8 @@ class ChatScreenState extends State<ChatScreen> {
             buildInput(),
           ],
         ),
-        buildLoading()
+        buildLoading(isLoading),
       ],
-    );
-  }
-
-  Widget buildLoading() {
-    return Positioned(
-      child: isLoading
-          ? Container(
-              child: Center(
-                child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
-              ),
-              color: Colors.white.withOpacity(0.8),
-            )
-          : Container(),
     );
   }
 
@@ -459,10 +425,10 @@ class ChatScreenState extends State<ChatScreen> {
         children: <Widget>[
           // Button send image
           Material(
-            child: new Container(
-              margin: new EdgeInsets.symmetric(horizontal: 1.0),
-              child: new IconButton(
-                icon: new Icon(Icons.image),
+            child: Container(
+              margin: EdgeInsets.symmetric(horizontal: 1.0),
+              child: IconButton(
+                icon: Icon(Icons.image),
                 onPressed: getImage,
                 color: primaryColor,
               ),
@@ -490,10 +456,10 @@ class ChatScreenState extends State<ChatScreen> {
 
           // Button send message
           Material(
-            child: new Container(
-              margin: new EdgeInsets.symmetric(horizontal: 8.0),
-              child: new IconButton(
-                icon: new Icon(Icons.send),
+            child: Container(
+              margin: EdgeInsets.symmetric(horizontal: 8.0),
+              child: IconButton(
+                icon: Icon(Icons.send),
                 onPressed: () => onSendMessage(textEditingController.text, 0),
                 color: primaryColor,
               ),
@@ -504,9 +470,8 @@ class ChatScreenState extends State<ChatScreen> {
       ),
       width: double.infinity,
       height: 50.0,
-      decoration: new BoxDecoration(
-          border:
-              new Border(top: new BorderSide(color: greyColor2, width: 0.5)),
+      decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: greyColor2, width: 0.5)),
           color: Colors.white),
     );
   }
@@ -549,4 +514,9 @@ class ChatScreenState extends State<ChatScreen> {
             ),
     );
   }
+}
+
+class MessageType {
+  static final int text = 0;
+  static final int image = 1;
 }

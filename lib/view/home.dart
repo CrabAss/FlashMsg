@@ -28,14 +28,14 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   HomeScreenState({Key key});
 
-  MyAccount myAccount;
   final FriendBloc friendBloc = FriendBloc();
+  final GoogleSignIn googleSignIn = GoogleSignIn();
 
+  MyAccount myAccount;
   FCMController fcmController;
   DateTime currentBackPressTime = DateTime.now().subtract(doubleTapInterval);
 
   bool isLoading = false;
-  bool isSigningOut = false;
 
   List<Choice> choices = const <Choice>[
     const Choice(title: 'Settings', icon: Icons.settings),
@@ -66,12 +66,34 @@ class HomeScreenState extends State<HomeScreen> {
       currentBackPressTime = now;
       Fluttertoast.showToast(msg: doubleTapToQuitMsg);
       return Future.value(false);
-    } else
-      return Future.value(true);
+    } else return Future.value(true);
   }
 
-  Widget buildItem(BuildContext context, Friend document) {
-    if (document.id == myAccount.id) {
+  void onItemMenuPress(Choice choice) {
+    if (choice.title == 'Log out') {
+      handleSignOut();
+    } else {
+      Navigator.push(
+          context, CupertinoPageRoute(builder: (context) => Settings()));
+    }
+  }
+
+  Future<Null> handleSignOut() async {
+    this.setState(() => isLoading = true);
+
+    await FirebaseAuth.instance.signOut();
+    await googleSignIn.disconnect();
+    await googleSignIn.signOut();
+
+    this.setState(() => isLoading = false);
+
+    Navigator.of(context).pushAndRemoveUntil(
+        CupertinoPageRoute(builder: (context) => LoginScreen()),
+            (Route<dynamic> route) => false);
+  }
+
+  Widget buildItem(BuildContext context, Friend friendEntry) {
+    if (friendEntry.id == myAccount.id) {
       return Container();
     } else {
       return Container(
@@ -89,7 +111,7 @@ class HomeScreenState extends State<HomeScreen> {
                         height: 50.0,
                         padding: EdgeInsets.all(15.0),
                       ),
-                  imageUrl: document.photoUrl,
+                  imageUrl: friendEntry.photoUrl,
                   width: 50.0,
                   height: 50.0,
                   fit: BoxFit.cover,
@@ -107,7 +129,7 @@ class HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: <Widget>[
                             Text(
-                              '${document.nickname}',
+                              '${friendEntry.nickname}',
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                               style: TextStyle(
@@ -118,7 +140,7 @@ class HomeScreenState extends State<HomeScreen> {
                             Text(
                               DateFormat('dd MMM kk:mm').format(
                                   DateTime.fromMillisecondsSinceEpoch(
-                                      int.parse(document.lastMsgDate))),
+                                      int.parse(friendEntry.lastMsgDate))),
                               style: TextStyle(
                                   color: Colors.black54,
                                   fontWeight: FontWeight.w400,
@@ -131,7 +153,7 @@ class HomeScreenState extends State<HomeScreen> {
                       ),
                       Container(
                         child: Text(
-                          '${document.lastMsg}',
+                          '${friendEntry.lastMsg}',
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                           style: TextStyle(
@@ -157,10 +179,10 @@ class HomeScreenState extends State<HomeScreen> {
                             providers: [
                               ChangeNotifierProvider(
                                   builder: (_) => PeerAccount(
-                                        id: document.id,
-                                        nickname: document.nickname ?? "Unknown",
-                                        photoUrl: document.photoUrl,
-                                        aboutMe: document.aboutMe,
+                                        id: friendEntry.id,
+                                        nickname: friendEntry.nickname ?? "Unknown",
+                                        photoUrl: friendEntry.photoUrl,
+                                        aboutMe: friendEntry.aboutMe,
                                       )),
                               Provider<FriendBloc>.value(value: friendBloc),
                             ],
@@ -172,48 +194,11 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  final GoogleSignIn googleSignIn = GoogleSignIn();
-
-  void onItemMenuPress(Choice choice) {
-    if (choice.title == 'Log out') {
-      handleSignOut();
-    } else {
-      Navigator.push(
-          context, CupertinoPageRoute(builder: (context) => Settings()));
-    }
-  }
-
-  Future<Null> handleSignOut() async {
-    this.setState(() {
-      isLoading = true;
-      isSigningOut = true;
-    });
-
-    await FirebaseAuth.instance.signOut();
-    await googleSignIn.disconnect();
-    await googleSignIn.signOut();
-
-    this.setState(() {
-      isLoading = false;
-    });
-
-    Navigator.of(context).pushAndRemoveUntil(
-        CupertinoPageRoute(builder: (context) => LoginScreen()),
-        (Route<dynamic> route) => false);
-  }
-
   @override
   Widget build(BuildContext context) {
-/*    try {
-      if (isSigningOut == false)
-        bloc.batchUpdateFriends();
-    } catch (e) {}*/
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'FlashMsg',
-          style: TextStyle(color: whiteColor),
-        ),
+        title: Text('FlashMsg'),
         automaticallyImplyLeading: false,
         actions: <Widget>[
           IconButton(
@@ -287,19 +272,7 @@ class HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Loading
-            Positioned(
-              child: isLoading
-                  ? Container(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(themeColor)),
-                      ),
-                      color: Colors.white.withOpacity(0.8),
-                    )
-                  : Container(),
-            )
+            buildLoading(isLoading),
           ],
         ),
         onWillPop: onBackPress,

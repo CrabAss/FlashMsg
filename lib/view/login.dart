@@ -175,19 +175,7 @@ class LoginScreenState extends State<LoginScreen> {
                   ),
 
                   // Loading
-                  Positioned(
-                    child: isLoading
-                        ? Container(
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(themeColor),
-                              ),
-                            ),
-                            color: Colors.white.withOpacity(0.8),
-                          )
-                        : Container(),
-                  ),
+                  buildLoading(isLoading),
                 ],
               ),
             )

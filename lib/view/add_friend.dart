@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AddFriendScreen extends StatefulWidget {
 
@@ -21,8 +20,6 @@ class AddFriendScreen extends StatefulWidget {
 }
 
 class AddFriendScreenState extends State<AddFriendScreen> {
-  String barcode = "";
-  SharedPreferences prefs;
   MyAccount myAccount;
 
   GlobalKey globalKey = GlobalKey();
@@ -57,7 +54,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             boxShadow: [
-                              new BoxShadow(blurRadius: 8, color: greyColor)
+                              BoxShadow(blurRadius: 8, color: greyColor)
                             ],
                             borderRadius:
                                 BorderRadius.all(Radius.circular(4.0)),
@@ -73,12 +70,8 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                                   child: QrImage(
                                     data: userURIPrefix + myAccount.id,
                                     size: 300,
-                                    onError: (ex) {
-                                      print("[QR] ERROR - $ex");
-                                      setState(() {
-                                        this.barcode =
-                                            "Error! Maybe your input value is too long?";
-                                      });
+                                    onError: (e) {
+                                      setState(() => _showAlertDialog('Unknown error: $e'));
                                     },
                                   ),
                                 ),
@@ -112,18 +105,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                 ),
               ),
             ),
-            Positioned(
-              child: isLoading
-                  ? Container(
-                      child: Center(
-                        child: CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(themeColor)),
-                      ),
-                      color: Colors.white.withOpacity(0.8),
-                    )
-                  : Container(),
-            )
+            buildLoading(isLoading),
           ],
         ));
   }
@@ -134,12 +116,11 @@ class AddFriendScreenState extends State<AddFriendScreen> {
       setState(() {
         isLoading = true;
         findFriend(barcode);
-        return this.barcode = barcode;
       });
     } on PlatformException catch (e) {
       if (e.code == BarcodeScanner.CameraAccessDenied) {
         setState(() {
-          _showAlertDialog('The user did not grant the camera permission!');
+          _showAlertDialog('Sorry. We failed to scan because you did not grant the camera permission.');
         });
       } else {
         setState(() => _showAlertDialog('Unknown error: $e'));
@@ -171,7 +152,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
     );
   }
 
-  Widget friendPreview(DocumentSnapshot document) {
+  Widget friendPreview(DocumentSnapshot userProfile) {
     return Row(
       children: <Widget>[
         Material(
@@ -185,7 +166,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                   height: 50.0,
                   padding: EdgeInsets.all(15.0),
                 ),
-            imageUrl: document['photoUrl'],
+            imageUrl: userProfile['photoUrl'],
             width: 50.0,
             height: 50.0,
             fit: BoxFit.cover,
@@ -199,7 +180,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
               children: <Widget>[
                 Container(
                   child: Text(
-                    '${document['nickname']}',
+                    '${userProfile['nickname']}',
                     style: TextStyle(
                         color: Colors.black,
                         fontSize: 18,
@@ -211,14 +192,14 @@ class AddFriendScreenState extends State<AddFriendScreen> {
                 Visibility(
                   child: Container(
                     child: Text(
-                      '${document['aboutMe']}',
+                      '${userProfile['aboutMe']}',
                       style: TextStyle(
                           color: Colors.black54, fontWeight: FontWeight.w400),
                     ),
                     alignment: Alignment.centerLeft,
                     margin: EdgeInsets.fromLTRB(10.0, 0.0, 0.0, 0.0),
                   ),
-                  visible: document['aboutMe'] == null ? false : true,
+                  visible: userProfile['aboutMe'] == null ? false : true,
                 )
               ],
             ),
@@ -285,7 +266,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
     );
   }
 
-  void _showConfirmationDialog(DocumentSnapshot document) {
+  void _showConfirmationDialog(DocumentSnapshot userProfile) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -299,7 +280,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 25.0),
-                child: friendPreview(document),
+                child: friendPreview(userProfile),
               ),
             ],
           ),
@@ -315,7 +296,7 @@ class AddFriendScreenState extends State<AddFriendScreen> {
               onPressed: () {
                 setState(() {
                   isLoading = true;
-                  addNewFriend(document);
+                  addNewFriend(userProfile);
                 });
                 Navigator.of(context).pop();
               },
@@ -327,60 +308,53 @@ class AddFriendScreenState extends State<AddFriendScreen> {
   }
 
   void findFriend(String userURI) async {
-    String userId;
-    if (userURI.startsWith(userURIPrefix)) {
-      userId = userURI.substring(userURIPrefix.length);
-      QuerySnapshot result = await Firestore.instance
-          .collection('users')
-          .document(myAccount.id)
-          .collection('friends')
-          .where('id', isEqualTo: userId)
-          .getDocuments();
-      List<DocumentSnapshot> documents = result.documents;
-      if (documents.length > 0) {
-        setState(() {
-          isLoading = false;
-          _showAlertDialog("This user is your friend already.");
-        });
-        return;
-      }
-      result = await Firestore.instance
-          .collection('users')
-          .where('id', isEqualTo: userId)
-          .getDocuments();
-      documents = result.documents;
-      if (documents.length == 0) {
-        setState(() {
-          isLoading = false;
-          _showAlertDialog("This user does not exist in FlashMsg.");
-        });
-        return;
-      }
-      setState(() {
-        isLoading = false;
-        _showConfirmationDialog(documents[0]);
-      });
-    } else {
+    if (!userURI.startsWith(userURIPrefix)) {
       setState(() {
         isLoading = false;
         _showAlertDialog("This QR code is not generated by FlashMsg.");
       });
+    } else {
+      String userId = userURI.substring(userURIPrefix.length);
+      QuerySnapshot result = await Firestore.instance
+          .collection('users').document(myAccount.id)
+          .collection('friends').where('id', isEqualTo: userId)
+          .getDocuments();
+      if (result.documents.length > 0) {
+        setState(() {
+          isLoading = false;
+          _showAlertDialog("This user is your friend already.");
+        });
+      } else {
+        result = await Firestore.instance
+            .collection('users').where('id', isEqualTo: userId)
+            .getDocuments();
+        if (result.documents.length == 0) {
+          setState(() {
+            isLoading = false;
+            _showAlertDialog("This user does not exist in FlashMsg.");
+          });
+        } else {
+          setState(() {
+            isLoading = false;
+            _showConfirmationDialog(result.documents[0]);
+          });
+        }
+      }
     }
   }
 
-  void addNewFriend(DocumentSnapshot document) async {
-    prefs = await SharedPreferences.getInstance();
+  void addNewFriend(DocumentSnapshot userProfile) async {
     Firestore.instance
         .collection('users')
         .document(myAccount.id)
         .collection('friends')
-        .document(document['id'])
+        .document(userProfile['id'])
         .setData({
-      'id': document['id'],
+      'id': userProfile['id'],
     });
     Firestore.instance
         .collection('users')
-        .document(document['id'])
+        .document(userProfile['id'])
         .collection('friends')
         .document(myAccount.id)
         .setData({
