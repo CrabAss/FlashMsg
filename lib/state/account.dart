@@ -23,11 +23,11 @@ class Account with ChangeNotifier {
 class MyAccount extends Account {}
 
 class PeerAccount extends Account {
-  PeerAccount({@required String id, String nickname, String aboutMe, String photoUrl}) {
-    if (id != null) _id = id;
-    if (nickname != null) _nickname = nickname;
+  PeerAccount({@required String id, @required String nickname, String aboutMe, @required String photoUrl}) {
+    _id = id;
+    _nickname = nickname;
+    _photoUrl = photoUrl;
     if (aboutMe != null) _aboutMe = aboutMe;
-    if (photoUrl != null) _photoUrl = photoUrl;
     notifyListeners();
   }
 }

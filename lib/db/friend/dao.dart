@@ -83,7 +83,7 @@ class FriendDAO {
     final DocumentSnapshot UserDocument = UserQuery.documents[0];
     final DocumentSnapshot LastMessageDocument = await getLastMsg(peerId);
 
-    var lastMsgDate, lastMsg;
+    String lastMsgDate, lastMsg;
 
     if (LastMessageDocument == null) {
       lastMsgDate = DateTime.now().millisecondsSinceEpoch.toString();

@@ -29,7 +29,6 @@ class HomeScreenState extends State<HomeScreen> {
   HomeScreenState({Key key});
 
   final FriendBloc friendBloc = FriendBloc();
-  final GoogleSignIn googleSignIn = GoogleSignIn();
 
   MyAccount myAccount;
   FCMController fcmController;
@@ -39,8 +38,16 @@ class HomeScreenState extends State<HomeScreen> {
 
   List<Choice> choices = const <Choice>[
     const Choice(title: 'Settings', icon: Icons.settings),
-    const Choice(title: 'Log out', icon: Icons.exit_to_app),
+    const Choice(title: 'Sign out', icon: Icons.exit_to_app),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    setState(() {
+      friendBloc.batchUpdateFriends();
+    });
+}
 
   @override
   void didChangeDependencies() {
@@ -48,15 +55,12 @@ class HomeScreenState extends State<HomeScreen> {
 
     myAccount = Provider.of<MyAccount>(context);
     fcmController = FCMController(myAccount.id, friendBloc);
-
-    setState(() {
-      friendBloc.batchUpdateFriends();
-    });
   }
 
   @override
   void dispose() {
     friendBloc.dispose();
+    fcmController.dispose();
     super.dispose();
   }
 
@@ -70,7 +74,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   void onItemMenuPress(Choice choice) {
-    if (choice.title == 'Log out') {
+    if (choice.title == 'Sign out') {
       handleSignOut();
     } else {
       Navigator.push(
@@ -80,6 +84,8 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<Null> handleSignOut() async {
     this.setState(() => isLoading = true);
+
+    final GoogleSignIn googleSignIn = GoogleSignIn();
 
     await FirebaseAuth.instance.signOut();
     await googleSignIn.disconnect();
@@ -182,7 +188,6 @@ class HomeScreenState extends State<HomeScreen> {
                                         id: friendEntry.id,
                                         nickname: friendEntry.nickname ?? "Unknown",
                                         photoUrl: friendEntry.photoUrl,
-                                        aboutMe: friendEntry.aboutMe,
                                       )),
                               Provider<FriendBloc>.value(value: friendBloc),
                             ],
@@ -198,7 +203,7 @@ class HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('FlashMsg'),
+        title: Text(appName),
         automaticallyImplyLeading: false,
         actions: <Widget>[
           IconButton(

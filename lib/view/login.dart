@@ -82,15 +82,13 @@ class LoginScreenState extends State<LoginScreen> {
     if (firebaseUser != null) {
       // Check is already sign up
       final QuerySnapshot result = await Firestore.instance
-          .collection('users')
-          .where('id', isEqualTo: firebaseUser.uid)
+          .collection('users').where('id', isEqualTo: firebaseUser.uid)
           .getDocuments();
       final List<DocumentSnapshot> documents = result.documents;
       if (documents.length == 0) {
         // Update data to server if new user
         Firestore.instance
-            .collection('users')
-            .document(firebaseUser.uid)
+            .collection('users').document(firebaseUser.uid)
             .setData({
           'nickname': firebaseUser.displayName,
           'photoUrl': firebaseUser.photoUrl,
@@ -152,7 +150,7 @@ class LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: whiteColor, fontSize: 24),
                       ),
                       Text(
-                        "FlashMsg",
+                        appName,
                         style: TextStyle(
                             color: whiteColor,
                             fontSize: 36,

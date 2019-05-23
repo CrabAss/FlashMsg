@@ -5,20 +5,34 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flashmsg/db/friend/bloc.dart';
 
 class FCMController {
-  final String myId;
-  final FriendBloc friendBloc;
+
+  final String _myId;
+  final FriendBloc _friendBloc;
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
 
-  FCMController(this.myId, this.friendBloc) {
+  static FCMController _singleton;
+
+  factory FCMController(myId, friendBloc) {
+    if (_singleton == null) {
+      _singleton = FCMController._internal(myId, friendBloc);
+    }
+    return _singleton;
+  }
+
+  FCMController._internal(this._myId, this._friendBloc) {
     initFCMListeners();
+  }
+
+  void dispose() {
+    _singleton = null;
   }
 
   void updateToken() {
     _firebaseMessaging.getToken().then((token) {
-      print(token);
+      print("FCM controller initialized at usedId == $_myId with token == $token");
       Firestore.instance
           .collection('fcm_tokens')
-          .document(myId)
+          .document(_myId)
           .setData({'token': token});
     });
   }
@@ -53,12 +67,12 @@ class FCMController {
   }
 
   void handleNewMessage(Map<String, dynamic> message) {
-    friendBloc.updateFriend(message["data"]["senderId"],
+    _friendBloc.updateFriend(message["data"]["senderId"],
         message["data"]["timestamp"], message["notification"]["body"]);
   }
 
   void handleNewFriend(Map<String, dynamic> message) {
-    friendBloc.newFriend(message['data']['friendId']);
+    _friendBloc.newFriend(message['data']['friendId']);
   }
 
   void iosPermission() {
